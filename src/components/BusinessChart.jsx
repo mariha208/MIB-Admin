@@ -20,14 +20,14 @@ const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
             <div style={{
-                background: 'rgba(26, 26, 46, 0.95)',
-                border: '1px solid rgba(108, 92, 231, 0.3)',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '8px',
                 padding: '12px 16px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                boxShadow: 'var(--shadow-glow)',
             }}>
                 <p style={{
-                    color: '#fff',
+                    color: 'var(--text-primary)',
                     fontWeight: 600,
                     marginBottom: '8px',
                     fontSize: '14px'
@@ -66,21 +66,21 @@ export default function BusinessChart({ title = "Total Business by Chapter" }) {
                     >
                         <CartesianGrid
                             strokeDasharray="3 3"
-                            stroke="rgba(108, 92, 231, 0.1)"
+                            stroke="var(--chart-grid)"
                             vertical={false}
                         />
                         <XAxis
                             dataKey="name"
-                            stroke="#a0a0b8"
+                            stroke="var(--chart-axis)"
                             fontSize={12}
                             tickLine={false}
-                            axisLine={{ stroke: 'rgba(108, 92, 231, 0.2)' }}
+                            axisLine={{ stroke: 'var(--border-color)' }}
                         />
                         <YAxis
-                            stroke="#a0a0b8"
+                            stroke="var(--chart-axis)"
                             fontSize={12}
                             tickLine={false}
-                            axisLine={{ stroke: 'rgba(108, 92, 231, 0.2)' }}
+                            axisLine={{ stroke: 'var(--border-color)' }}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend
@@ -90,25 +90,25 @@ export default function BusinessChart({ title = "Total Business by Chapter" }) {
                         <Bar
                             dataKey="chapter1"
                             name="Chapter 1"
-                            fill="#6c5ce7"
+                            fill="var(--chart-1)"
                             radius={[4, 4, 0, 0]}
                         />
                         <Bar
                             dataKey="chapter2"
                             name="Chapter 2"
-                            fill="#a29bfe"
+                            fill="var(--chart-2)"
                             radius={[4, 4, 0, 0]}
                         />
                         <Bar
                             dataKey="chapter3"
                             name="Chapter 3"
-                            fill="#00cec9"
+                            fill="var(--chart-3)"
                             radius={[4, 4, 0, 0]}
                         />
                         <Bar
                             dataKey="chapter4"
                             name="Chapter 4"
-                            fill="#81ecec"
+                            fill="var(--chart-4)"
                             radius={[4, 4, 0, 0]}
                         />
                     </BarChart>

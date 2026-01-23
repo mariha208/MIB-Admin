@@ -9,10 +9,12 @@ import {
     Menu,
     X,
     Shield,
+    Bell,
 } from 'lucide-react';
 
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'controls', label: 'Controls', icon: Shield },
     { id: 'business', label: 'Business', icon: Briefcase },

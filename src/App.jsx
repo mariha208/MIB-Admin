@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, Share2, UserPlus, UserCheck, Menu, Bell } from 'lucide-react';
+import { Briefcase, Share2, UserPlus, UserCheck, Menu, Bell, Sun, Moon } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import StatCard from './components/StatCard';
 import BusinessChart from './components/BusinessChart';
@@ -7,12 +7,13 @@ import UsersTable from './components/UsersTable';
 import CategoryDetails from './components/CategoryDetails';
 import LoginDetailPage from './components/LoginDetailPage';
 import ControlsPage from './components/ControlsPage';
+import NotificationsPage from './components/NotificationsPage';
 import { DataProvider, useData } from './context/DataContext';
 import './index.css';
 
 import { formatIndianCurrency } from './utils/formatters';
 
-function Dashboard({ onNavigate }) {
+function Dashboard({ onNavigate, theme, onToggleTheme }) {
   const { data, loading } = useData();
 
   if (loading) {
@@ -34,8 +35,15 @@ function Dashboard({ onNavigate }) {
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="header-actions">
-          <button className="notification-btn" aria-label="Notifications">
+        <div className="header-actions" style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <button className="notification-btn" onClick={onToggleTheme} aria-label="Toggle Theme">
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <button
+            className="notification-btn"
+            aria-label="Notifications"
+            onClick={() => onNavigate('notifications')}
+          >
             <Bell size={20} />
             <span className="notification-badge"></span>
           </button>
@@ -89,12 +97,19 @@ function Dashboard({ onNavigate }) {
 function App() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('mib-admin-theme') || 'dark');
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('mib-admin-theme', newTheme);
+  };
 
   const isCategoryPage = ['business', 'referrals', '1-2-1', 'visitors'].includes(activeNav);
 
   return (
     <DataProvider>
-      <div className={`app-layout ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+      <div className={`app-layout ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${theme === 'light' ? 'theme-light' : ''}`}>
         {!isSidebarOpen && (
           <button
             className="mobile-menu-btn"
@@ -112,7 +127,7 @@ function App() {
         />
 
         {activeNav === 'dashboard' ? (
-          <Dashboard onNavigate={setActiveNav} />
+          <Dashboard onNavigate={setActiveNav} theme={theme} onToggleTheme={toggleTheme} />
         ) : activeNav === 'users' ? (
           <main className="main-content">
             <header className="page-header center-header">
@@ -139,6 +154,10 @@ function App() {
           <LoginDetailPage />
         ) : activeNav === 'controls' ? (
           <ControlsPage />
+        ) : activeNav === 'notifications' ? (
+          <main className="main-content">
+            <NotificationsPage onNavigate={setActiveNav} />
+          </main>
         ) : (
           <main className="main-content">
             <header className="page-header center-header">

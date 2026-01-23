@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X } from 'lucide-react';
 import ControlFormModal from './ControlFormModal';
 
 const MOCK_HISTORY = [
-    { id: 1, type: 'Country', giver: 'Admin', givenTo: 'India Head', date: '20-Jan-2026', level: 'National', password: 'India@2026' },
     { id: 2, type: 'City', giver: 'Admin', givenTo: 'Mumbai Lead', date: '19-Jan-2026', level: 'Mumbai', password: 'Mum#Lead$25' },
     { id: 3, type: 'Chapter', giver: 'Admin', givenTo: 'Chapter 3 Sec', date: '18-Jan-2026', level: 'Chapter 3', password: 'Chap3Sec!99' },
 ];
@@ -60,15 +59,54 @@ const WEEKLY_DATA = [
     },
 ];
 
+const INITIAL_HISTORY = [
+    { id: 2, type: 'Mumbai', giver: 'Admin', givenTo: 'Mumbai Lead', date: '19-Jan-2026', level: 'City', password: 'Mum#Lead$25' },
+    { id: 3, type: 'Chapter 3 Sec', giver: 'Admin', givenTo: 'Chapter 3 Sec', date: '18-Jan-2026', level: 'Chapter 3', password: 'Chap3Sec!99' },
+];
+
 export default function ControlsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [view, setView] = useState('list'); // 'list', 'password', 'event', etc.
+    const [history, setHistory] = useState(() => {
+        const saved = localStorage.getItem('mib_control_history');
+        return saved ? JSON.parse(saved) : INITIAL_HISTORY;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('mib_control_history', JSON.stringify(history));
+    }, [history]);
 
     const [selectedCity, setSelectedCity] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(null);
     const [selectedCityForWeeklyReport, setSelectedCityForWeeklyReport] = useState(null);
     const [selectedCityForUpload, setSelectedCityForUpload] = useState(null);
     const [eventPhoto, setEventPhoto] = useState(null);
+
+    const availableCities = useMemo(() => {
+        const cities = new Set();
+        // Extract cities from CITIES constant
+        CITIES.forEach(c => cities.add(c.name));
+        // Extract cities from history logs
+        history.forEach(log => {
+            if (log.level === 'City') {
+                cities.add(log.type);
+            } else if (log.level && log.level !== 'City' && log.level !== 'Chapter') {
+                // If it's a chapter, level field stores the city name
+                cities.add(log.level);
+            }
+        });
+        return Array.from(cities).sort();
+    }, [history]);
+
+    const handleAddControl = (newData) => {
+        const newEntry = {
+            id: history.length > 0 ? Math.max(...history.map(h => h.id)) + 1 : 1,
+            giver: 'Admin',
+            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'),
+            ...newData
+        };
+        setHistory([newEntry, ...history]);
+    };
 
     const renderListView = () => (
         <div className="control-list animate-fade-in">
@@ -117,7 +155,7 @@ export default function ControlsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {MOCK_HISTORY.map((log) => (
+                                {history.map((log) => (
                                     <tr key={log.id}>
                                         <td><span className="id-badge">#{log.id}</span></td>
                                         <td>
@@ -127,7 +165,7 @@ export default function ControlsPage() {
                                             </div>
                                         </td>
                                         <td><span style={{ color: 'var(--text-secondary)' }}>{log.givenTo}</span></td>
-                                        <td><code style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{log.password}</code></td>
+                                        <td><code style={{ background: 'var(--bg-secondary)', color: 'var(--accent-primary)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{log.password}</code></td>
                                         <td>{log.giver}</td>
                                         <td>{log.date}</td>
                                         <td>
@@ -391,7 +429,7 @@ export default function ControlsPage() {
                                                     <td>
                                                         <span
                                                             className="user-name"
-                                                            style={{ cursor: 'pointer', textDecoration: 'underline', color: 'white' }}
+                                                            style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--text-primary)' }}
                                                             onClick={() => setSelectedChapter(report.chapter)}
                                                         >
                                                             {report.chapter}
@@ -404,7 +442,7 @@ export default function ControlsPage() {
                                                 </tr>
                                             ))}
                                             {/* Total Row */}
-                                            <tr style={{ background: 'rgba(255,255,255,0.05)', fontWeight: 'bold' }}>
+                                            <tr style={{ background: 'var(--hover-bg)', fontWeight: 'bold' }}>
                                                 <td style={{ textAlign: 'right', paddingRight: '1rem' }}>TOTAL ({aggregatedReports.length} Chapters)</td>
                                                 <td style={{ textAlign: 'center', color: '#4ade80' }}>₹ {totals.businessDone.toLocaleString()}</td>
                                                 <td style={{ textAlign: 'center' }}>{totals.referrals}</td>
@@ -500,7 +538,7 @@ export default function ControlsPage() {
                                                 padding: '4px 8px',
                                                 borderRadius: '6px'
                                             }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                             title="Click to view chapter report"
                                         >
@@ -609,7 +647,7 @@ export default function ControlsPage() {
                             <h2 className="section-title text-white">Upload New Event - {selectedCityForUpload}</h2>
                         </div>
 
-                        <div style={{ maxWidth: '600px', margin: '0 auto', background: '#1e293b', padding: '2rem', borderRadius: '12px' }}>
+                        <div style={{ maxWidth: '600px', margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '12px' }}>
                             <form onSubmit={(e) => {
                                 e.preventDefault();
                                 alert('Event Uploaded Successfully!');
@@ -630,7 +668,7 @@ export default function ControlsPage() {
                                         justifyContent: 'center',
                                         cursor: 'pointer',
                                         marginBottom: '2rem',
-                                        background: eventPhoto ? `url(${eventPhoto}) center/cover no-repeat` : 'rgba(255,255,255,0.05)',
+                                        background: eventPhoto ? `url(${eventPhoto}) center/cover no-repeat` : 'var(--bg-secondary)',
                                         position: 'relative'
                                     }}
                                 >
@@ -648,7 +686,7 @@ export default function ControlsPage() {
                                             }}>
                                                 <Plus size={24} color="rgba(255,255,255,0.7)" />
                                             </div>
-                                            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem' }}>Upload Event Photo</span>
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>Upload Event Photo</span>
                                         </>
                                     )}
                                     <input
@@ -696,69 +734,69 @@ export default function ControlsPage() {
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Event Name *</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Event Name *</label>
                                     <input
                                         type="text"
                                         placeholder="e.g. Fun fair"
                                         required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Date *</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Date *</label>
                                     <input
                                         type="text"
                                         placeholder="e.g. 25 Jan, 2025"
                                         required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Full Address *</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Full Address *</label>
                                     <input
                                         type="text"
                                         placeholder="e.g. TGB, Surat"
                                         required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Location (Gmap Link)</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Location (Gmap Link)</label>
                                     <input
                                         type="url"
                                         placeholder="Paste Google Maps URL here"
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Timing *</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Timing *</label>
                                     <input
                                         type="text"
                                         placeholder="e.g. 5:00 to 9:00 pm"
                                         required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
 
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Note</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Note</label>
                                     <textarea
                                         placeholder="Any special notes..."
                                         rows="3"
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     ></textarea>
                                 </div>
 
                                 <div style={{ marginBottom: '2rem' }}>
-                                    <label style={{ display: 'block', color: '#e2e8f0', marginBottom: '0.5rem', fontWeight: '500' }}>Registration Form Link</label>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '500' }}>Registration Form Link</label>
                                     <input
                                         type="url"
                                         placeholder="https://forms.gle/..."
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: 'white' }}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
 
@@ -866,6 +904,8 @@ export default function ControlsPage() {
             <ControlFormModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                onSubmit={handleAddControl}
+                cities={availableCities}
             />
         </main>
     );

@@ -6,7 +6,6 @@ export default function UsersTable() {
     const { data, loading } = useData();
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState({
-        country: '',
         city: '',
         chapter: ''
     });
@@ -15,15 +14,14 @@ export default function UsersTable() {
         return data.users.filter(user => {
             const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 user.id.toString().includes(searchQuery);
-            const matchesCountry = filters.country === '' || user.country === filters.country;
             const matchesCity = filters.city === '' || user.city === filters.city;
             const matchesChapter = filters.chapter === '' || user.chapter === filters.chapter;
 
-            return matchesSearch && matchesCountry && matchesCity && matchesChapter;
+            return matchesSearch && matchesCity && matchesChapter;
         });
     }, [data.users, searchQuery, filters]);
 
-    const uniqueCountries = [...new Set(data.users.map(u => u.country))];
+
     const uniqueCities = [...new Set(data.users.map(u => u.city))];
     const uniqueChapters = [...new Set(data.users.map(u => u.chapter))];
 
@@ -41,16 +39,6 @@ export default function UsersTable() {
                 </div>
 
                 <div className="filter-group">
-                    <div className="filter-select-wrapper">
-                        <select
-                            value={filters.country}
-                            onChange={(e) => setFilters(prev => ({ ...prev, country: e.target.value }))}
-                        >
-                            <option value="">All Countries</option>
-                            {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        <ChevronDown className="select-arrow" size={16} />
-                    </div>
 
                     <div className="filter-select-wrapper">
                         <select
