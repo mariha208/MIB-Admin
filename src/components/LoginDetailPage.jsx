@@ -9,8 +9,8 @@ export default function LoginDetailPage() {
         <main className="main-content">
             <header className="page-header center-header">
                 <div className="header-content">
-                    <h1 className="page-title">Login Details</h1>
-                    <p className="page-subtitle">Detailed user profile and transaction logs from sign-up.</p>
+                    <h1 className="page-title">Pending Users</h1>
+                    <p className="page-subtitle">Users with Pending Login Details.</p>
                 </div>
             </header>
 
@@ -27,13 +27,12 @@ export default function LoginDetailPage() {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Profile</th>
+                                <th>Name</th>
                                 <th>Email</th>
-                                <th>Phone No.</th>
-                                <th>Transaction Details</th>
-                                <th>Location</th>
-                                <th>Chapter</th>
-                                <th>Actions</th>
+                                <th>Password</th>
+                                <th>Transaction ID</th>
+                                <th>City ID</th>
+                                <th>Chapter ID</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -49,21 +48,10 @@ export default function LoginDetailPage() {
                                         </div>
                                     </td>
                                     <td><span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{user.email}</span></td>
-                                    <td><span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{user.phone}</span></td>
+                                    <td><span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{user.password || '******'}</span></td>
                                     <td><code style={{ background: 'rgba(108, 92, 231, 0.1)', color: 'var(--primary-light)', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>{user.transactionDetails}</code></td>
-                                    <td>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span>{user.city}</span>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{user.country}</span>
-                                        </div>
-                                    </td>
-                                    <td>{user.chapter}</td>
-                                    <td>
-                                        <div className="action-buttons">
-                                            <button className="icon-btn edit" title="View"><Edit2 size={16} /></button>
-                                            <button className="icon-btn delete" title="Flag"><Trash2 size={16} /></button>
-                                        </div>
-                                    </td>
+                                    <td><span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{user.cityId || 'N/A'}</span></td>
+                                    <td><span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{user.chapterId || 'N/A'}</span></td>
                                 </tr>
                             ))}
                         </tbody>

@@ -21,7 +21,7 @@ const navItems = [
     { id: 'referrals', label: 'Referrals', icon: Share2 },
     { id: '1-2-1', label: '1-2-1', icon: UserPlus },
     { id: 'visitors', label: 'Visitors', icon: UserCheck },
-    { id: 'login', label: 'Login Detail', icon: Settings },
+    { id: 'login', label: 'Pending Users', icon: Settings },
 ];
 
 export default function Sidebar({ activeItem = 'dashboard', onNavClick, isOpen, onToggle }) {
