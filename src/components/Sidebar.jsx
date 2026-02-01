@@ -10,7 +10,9 @@ import {
     X,
     Shield,
     Bell,
+    LogOut,
 } from 'lucide-react';
+import { useData } from '../context/DataContext';
 
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,6 +27,7 @@ const navItems = [
 ];
 
 export default function Sidebar({ activeItem = 'dashboard', onNavClick, isOpen, onToggle }) {
+    const { logout } = useData();
     return (
         <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
             <div className="sidebar-header">
@@ -53,6 +56,20 @@ export default function Sidebar({ activeItem = 'dashboard', onNavClick, isOpen, 
                         </a>
                     );
                 })}
+                <a
+                    className="nav-item"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (window.confirm('Are you sure you want to logout?')) {
+                            logout();
+                        }
+                    }}
+                    href="#"
+                    style={{ marginTop: 'var(--spacing-xl)', color: '#ff7675' }}
+                >
+                    <LogOut className="nav-item-icon" size={20} />
+                    <span className="nav-item-text">Logout</span>
+                </a>
             </nav>
         </aside>
     );

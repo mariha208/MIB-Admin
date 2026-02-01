@@ -94,6 +94,63 @@ export function DataProvider({ children }) {
         // TODO: API call to add chapter
     };
 
+
+
+    // Authentication State
+    const [user, setUser] = useState(() => {
+        const storedUser = localStorage.getItem('mib-admin-user');
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                // If password is missing (old session), force logout/null
+                if (parsed.password) return parsed;
+                localStorage.removeItem('mib-admin-user');
+            } catch (e) {
+                localStorage.removeItem('mib-admin-user');
+            }
+        }
+        return null;
+    });
+
+    const login = (email, password) => {
+        // Hardcoded credentials as requested
+        const validUsers = [
+            {
+                email: "Admin@gmail.com",
+                password: "Admin1234",
+                name: "Main Admin",
+                role: "Super Administrator"
+            },
+            {
+                email: "SuratAdmin@gmail.com",
+                password: "SuratAdmin1234",
+                name: "Surat Admin",
+                role: "Region Administrator"
+            }
+        ];
+
+        const match = validUsers.find(u => u.email === email && u.password === password);
+
+        if (match) {
+            const loggedInUser = {
+                name: match.name,
+                email: email,
+                password: password,
+                role: match.role,
+                avatar: match.name.charAt(0)
+            };
+            setUser(loggedInUser);
+            localStorage.setItem('mib-admin-user', JSON.stringify(loggedInUser));
+            return true;
+        }
+        return false;
+    };
+
+    const logout = () => {
+        setUser(null);
+        localStorage.removeItem('mib-admin-user');
+    };
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -103,6 +160,10 @@ export function DataProvider({ children }) {
             data,
             loading,
             error,
+            user,
+            isAuthenticated: !!user,
+            login,
+            logout,
             fetchData,
             updateStat,
             addUser,
