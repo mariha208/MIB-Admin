@@ -10,24 +10,43 @@ const initialData = {
         totalVisitors: 67,
     },
     chapters: [
-        { id: 1, name: 'Chapter 1', city: 'Surat', members: 45 },
-        { id: 2, name: 'Chapter 2', city: 'Surat', members: 32 },
-        { id: 3, name: 'Chapter 3', city: 'Mumbai', members: 52 },
-        { id: 4, name: 'Chapter 4', city: 'Mumbai', members: 41 },
+        { id: 1, name: 'Chapter 1', city: 'Surat', members: 10 },
+        { id: 2, name: 'Chapter 2', city: 'Surat', members: 8 },
+        { id: 3, name: 'Chapter 3', city: 'Surat', members: 9 },
+        { id: 4, name: 'Apple', city: 'Mumbai', members: 10 },
+        { id: 5, name: 'Banana', city: 'Mumbai', members: 20 },
     ],
     users: [
+        // Existing Admins
         { id: 101, name: 'John Doe', email: 'john@example.com', password: 'pass', phone: '+91 98765 43210', transactionDetails: 'TXN_MIB_8892', city: 'Surat', cityId: 'SUR', chapter: 'Chapter 1', chapterId: '1', business: '₹1.2L', referrals: 15, visitors: 2, one2one: 12, status: 'Active', role: 'City Admin', approvalStatus: 'Approved' },
-        { id: 102, name: 'Jane Smith', email: 'jane@world.com', password: 'pass', phone: '+91 88776 65544', transactionDetails: 'TXN_MIB_1120', city: 'Mumbai', cityId: 'MUM', chapter: 'Chapter 3', chapterId: '3', business: '₹5.4L', referrals: 28, visitors: 5, one2one: 20, status: 'Active', role: 'City Admin', approvalStatus: 'Approved' },
-        { id: 103, name: 'Rahul Verma', email: 'rahul.v@gmail.com', password: 'pass', phone: '+91 99009 88112', transactionDetails: 'TXN_MIB_4432', city: 'Surat', cityId: 'SUR', chapter: 'Chapter 2', chapterId: '2', business: '₹80K', referrals: 10, visitors: 1, one2one: 8, status: 'Inactive', role: 'User', approvalStatus: 'Rejected' },
-        { id: 104, name: 'Sneha Kapur', email: 'sneha@mib.org', password: 'pass', phone: '+91 77221 13344', transactionDetails: 'TXN_MIB_9901', city: 'Mumbai', cityId: 'MUM', chapter: 'Chapter 4', chapterId: '4', business: '₹2.1L', referrals: 22, visitors: 3, one2one: 18, status: 'Active', role: 'User', approvalStatus: 'Pending' },
+        { id: 102, name: 'Jane Smith', email: 'jane@world.com', password: 'pass', phone: '+91 88776 65544', transactionDetails: 'TXN_MIB_1120', city: 'Mumbai', cityId: 'MUM', chapter: 'Apple', chapterId: '4', business: '₹5.4L', referrals: 28, visitors: 5, one2one: 20, status: 'Active', role: 'City Admin', approvalStatus: 'Approved' },
         { id: 105, name: 'Amit Shah', email: 'amit.s@corp.com', password: 'pass', phone: '+91 91122 33445', transactionDetails: 'TXN_MIB_2209', city: 'Ahmedabad', cityId: 'AHM', chapter: 'Chapter 1', chapterId: '1', business: '₹3.5L', referrals: 18, visitors: 4, one2one: 15, status: 'Active', role: 'City Admin', approvalStatus: 'Approved' },
-        { id: 106, name: 'Priya Joshi', email: 'priya.j@dev.in', password: 'pass', phone: '+91 88990 01122', transactionDetails: 'TXN_MIB_7761', city: 'Baroda', cityId: 'BAR', chapter: 'Chapter 2', chapterId: '2', business: '₹1.8L', referrals: 12, visitors: 2, one2one: 10, status: 'Active', role: 'User', approvalStatus: 'Pending' },
+
+        // Surat - Chapter 1 (10 members)
+        ...Array.from({ length: 10 }, (_, i) => ({
+            id: 200 + i, name: `Surat C1 Member ${i + 1}`, email: `s1m${i + 1}@mib.com`, password: 'pass', city: 'Surat', chapter: 'Chapter 1', role: 'User', status: 'Active', approvalStatus: 'Approved'
+        })),
+        // Surat - Chapter 2 (8 members)
+        ...Array.from({ length: 8 }, (_, i) => ({
+            id: 220 + i, name: `Surat C2 Member ${i + 1}`, email: `s2m${i + 1}@mib.com`, password: 'pass', city: 'Surat', chapter: 'Chapter 2', role: 'User', status: 'Active', approvalStatus: 'Approved'
+        })),
+        // Surat - Chapter 3 (9 members)
+        ...Array.from({ length: 9 }, (_, i) => ({
+            id: 240 + i, name: `Surat C3 Member ${i + 1}`, email: `s3m${i + 1}@mib.com`, password: 'pass', city: 'Surat', chapter: 'Chapter 3', role: 'User', status: 'Active', approvalStatus: 'Approved'
+        })),
+        // Mumbai - Apple (10 members)
+        ...Array.from({ length: 10 }, (_, i) => ({
+            id: 300 + i, name: `Mumbai Apple Member ${i + 1}`, email: `ma${i + 1}@mib.com`, password: 'pass', city: 'Mumbai', chapter: 'Apple', role: 'User', status: 'Active', approvalStatus: 'Approved'
+        })),
+        // Mumbai - Banana (20 members)
+        ...Array.from({ length: 20 }, (_, i) => ({
+            id: 320 + i, name: `Mumbai Banana Member ${i + 1}`, email: `mb${i + 1}@mib.com`, password: 'pass', city: 'Mumbai', chapter: 'Banana', role: 'User', status: 'Active', approvalStatus: 'Approved'
+        })),
     ],
     businessData: [],
     referralsData: [],
     visitorsData: [],
-    pendingRequests: [], // Added pending requests
-    pendingRequests: [], // Added pending requests
+    pendingRequests: [],
 };
 
 // Helper to get initial data from localStorage or fallback to initialData
@@ -36,8 +55,9 @@ const getInitialData = () => {
     if (storedData) {
         try {
             const parsedData = JSON.parse(storedData);
-            // Merge with initialData structure in case of schema changes
-            return { ...initialData, ...parsedData };
+            // For this update, we want to ensure the new chapters and dummy users are loaded
+            // So we override them from initialData while keeping other state
+            return { ...parsedData, chapters: initialData.chapters, users: initialData.users };
         } catch (error) {
             console.error('Failed to parse stored data:', error);
             return initialData;

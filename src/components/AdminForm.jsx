@@ -1,77 +1,67 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Trash2, UserPlus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ArrowLeft, Search, ChevronDown, UserPlus, Check } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
-    const { data, addUser, updateUser, deleteUser } = useData();
-    const [formData, setFormData] = useState({
-        name: '',
-        city: '',
-        chapter: '',
-        role: 'City Admin'
-    });
+    const { data, updateStat, updateUser } = useData();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterCity, setFilterCity] = useState('');
+    const [filterChapter, setFilterChapter] = useState('');
+    const [passwords, setPasswords] = useState({});
 
-    const uniqueCities = [...new Set(data.chapters.map(c => c.city))];
+    const filteredUsers = useMemo(() => {
+        return data.users.filter(user => {
+            // Strictly show only members with "User" role
+            const isMember = user.role === 'User';
+            const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                user.id.toString().includes(searchQuery);
+            const matchesCity = filterCity === '' || user.city === filterCity;
+            const matchesChapter = filterChapter === '' || user.chapter === filterChapter;
+
+            return isMember && matchesSearch && matchesCity && matchesChapter;
+        });
+    }, [data.users, searchQuery, filterCity, filterChapter]);
+
+    const sortedUsers = useMemo(() => {
+        return [...filteredUsers].sort((a, b) => {
+            if (a.city !== b.city) return a.city.localeCompare(b.city);
+            if (a.chapter !== b.chapter) return a.chapter.localeCompare(b.chapter);
+            return a.name.localeCompare(b.name);
+        });
+    }, [filteredUsers]);
+
+    const uniqueCities = [...new Set(data.users.map(u => u.city))];
     const availableChapters = data.chapters
-        .filter(c => !formData.city || c.city === formData.city)
+        .filter(c => !filterCity || c.city === filterCity)
         .map(c => c.name);
 
-    const availableMembers = data.users.filter(u =>
-        u.city === formData.city &&
-        u.chapter === formData.chapter
-    );
+    const handleSelectAsAdmin = async (userId, userName, city, chapter, userPassword) => {
+        const password = userPassword || 'pass'; // Use existing password
 
-    useEffect(() => {
-        if (mode === 'edit' && adminId) {
-            const admin = data.users.find(u => u.id === parseInt(adminId));
-            if (admin) {
-                setFormData({
-                    name: admin.name || '',
-                    city: admin.city || '',
-                    chapter: admin.chapter || '',
-                    role: admin.role || 'City Admin'
-                });
-            }
+        // Check if there's already an admin for this chapter
+        const existingAdmin = data.users.find(u =>
+            u.city === city &&
+            u.chapter === chapter &&
+            u.role === 'City Admin' &&
+            (u.approvalStatus === 'Approved' || !u.approvalStatus)
+        );
+
+        if (existingAdmin) {
+            alert(`Warning: '${city} - ${chapter}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease remove the existing admin first.`);
+            return;
         }
-    }, [mode, adminId, data.users]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            // Uniqueness Validation
-            const existingAdmin = data.users.find(u =>
-                u.city === formData.city &&
-                u.chapter === formData.chapter &&
-                u.role === 'City Admin' &&
-                (u.approvalStatus === 'Approved' || !u.approvalStatus) &&
-                (mode === 'create' || u.id !== parseInt(adminId))
-            );
-
-            if (existingAdmin) {
-                alert(`Warning: '${formData.city} - ${formData.chapter}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease choose a different City/Chapter or remove the existing admin first.`);
-                return;
-            }
-
-            if (mode === 'create') {
-                await addUser({ ...formData, status: 'Active', approvalStatus: 'Approved' });
-            } else {
-                await updateUser(parseInt(adminId), formData);
-            }
-            onNavigate('admins');
-        } catch (error) {
-            console.error('Failed to save admin:', error);
-            alert('Failed to save admin. Please try again.');
-        }
-    };
-
-    const handleDelete = async () => {
-        if (window.confirm('Are you sure you want to delete this admin? This action cannot be undone.')) {
+        if (window.confirm(`Are you sure you want to make ${userName} the Admin for ${city} - ${chapter}?`)) {
             try {
-                await deleteUser(parseInt(adminId));
+                await updateUser(userId, {
+                    role: 'City Admin',
+                    approvalStatus: 'Approved',
+                    password: password
+                });
                 onNavigate('admins');
             } catch (error) {
-                console.error('Failed to delete admin:', error);
-                alert('Failed to delete admin. Please try again.');
+                console.error('Failed to promote user:', error);
+                alert('Failed to promote user. Please try again.');
             }
         }
     };
@@ -100,131 +90,119 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
                     >
                         <ArrowLeft size={18} /> Back
                     </button>
-                    <h1 className="page-title">{mode === 'create' ? 'Create New Admin' : 'Edit Admin'}</h1>
+                    <h1 className="page-title">Select New Admin</h1>
+                    <p className="page-subtitle">Search and select a member to assign as a City Admin.</p>
                 </div>
             </header>
 
-            <div className="admin-form-container" style={{ maxWidth: '600px', margin: '0 auto' }}>
-                <form onSubmit={handleSubmit} className="control-form" style={{
-                    background: 'var(--bg-card)',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--border-color)',
-                    padding: 'var(--spacing-xl)'
-                }}>
-
-                    <div className="form-section">
-                        <h3 className="section-label" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                            Assignment
-                        </h3>
-                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>City</label>
-                                <div className="filter-select-wrapper">
-                                    <select
-                                        required
-                                        className="control-input"
-                                        style={{ width: '100%' }}
-                                        value={formData.city}
-                                        onChange={e => setFormData({ ...formData, city: e.target.value, chapter: '', name: '' })}
-                                    >
-                                        <option value="">Select City</option>
-                                        {uniqueCities.map(city => (
-                                            <option key={city} value={city}>{city}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Chapter</label>
-                                <div className="filter-select-wrapper">
-                                    <select
-                                        required
-                                        className="control-input"
-                                        style={{ width: '100%' }}
-                                        value={formData.chapter}
-                                        onChange={e => setFormData({ ...formData, chapter: e.target.value, name: '' })}
-                                        disabled={!formData.city}
-                                    >
-                                        <option value="">Select Chapter</option>
-                                        {availableChapters.map(chapter => (
-                                            <option key={chapter} value={chapter}>{chapter}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+            <div className="table-controls">
+                <div style={{ display: 'flex', gap: '16px', flex: 1 }}>
+                    <div className="search-box">
+                        <Search className="search-icon" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search members by name or ID..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
 
-                    <div className="form-section" style={{ marginTop: '24px' }}>
-                        <h3 className="section-label" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                            Admin Details
-                        </h3>
-                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Select Member</label>
-                                <div className="filter-select-wrapper">
-                                    <select
-                                        required
-                                        className="control-input"
-                                        style={{ width: '100%' }}
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        disabled={!formData.chapter}
-                                    >
-                                        <option value="">{formData.chapter ? 'Select Member' : 'Select Chapter first'}</option>
-                                        {availableMembers.map(member => (
-                                            <option key={member.id} value={member.name}>{member.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="form-actions" style={{ display: 'flex', gap: '12px', marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
-                        <button
-                            type="submit"
-                            className="submit-btn"
-                            style={{
-                                flex: 1,
-                                background: 'var(--accent-gradient)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 'var(--radius-md)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                padding: '12px'
-                            }}
-                        >
-                            <Save size={18} />
-                            {mode === 'create' ? 'Create Admin' : 'Save Changes'}
-                        </button>
-
-                        {mode === 'edit' && (
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                style={{
-                                    padding: '0 16px',
-                                    background: 'rgba(255, 118, 117, 0.1)',
-                                    color: '#ff7675',
-                                    border: '1px solid rgba(255, 118, 117, 0.2)',
-                                    borderRadius: 'var(--radius-md)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
+                    <div className="filter-group">
+                        <div className="filter-select-wrapper">
+                            <select
+                                value={filterCity}
+                                onChange={(e) => {
+                                    setFilterCity(e.target.value);
+                                    setFilterChapter('');
                                 }}
-                                title="Delete Admin"
                             >
-                                <Trash2 size={18} />
-                            </button>
-                        )}
+                                <option value="">All Cities</option>
+                                {uniqueCities.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <ChevronDown className="select-arrow" size={16} />
+                        </div>
                     </div>
-                </form>
+
+                    <div className="filter-group">
+                        <div className="filter-select-wrapper">
+                            <select
+                                value={filterChapter}
+                                onChange={(e) => setFilterChapter(e.target.value)}
+                                disabled={!filterCity}
+                            >
+                                <option value="">All Chapters</option>
+                                {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <ChevronDown className="select-arrow" size={16} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="table-container">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Name</th>
+                            <th>City Name</th>
+                            <th>Chapter Name</th>
+                            <th>Password</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sortedUsers.length > 0 ? (
+                            sortedUsers.map((user) => (
+                                <tr key={user.id}>
+                                    <td><span className="id-badge">#{user.id}</span></td>
+                                    <td>
+                                        <div className="user-info">
+                                            <div className="user-avatar">{user.name.charAt(0)}</div>
+                                            <span className="user-name">{user.name}</span>
+                                        </div>
+                                    </td>
+                                    <td>{user.city}</td>
+                                    <td>{user.chapter}</td>
+                                    <td>
+                                        <code style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                                            {user.password || '••••••'}
+                                        </code>
+                                    </td>
+                                    <td>
+                                        <button
+                                            className="action-btn"
+                                            onClick={() => handleSelectAsAdmin(user.id, user.name, user.city, user.chapter, user.password)}
+                                            style={{
+                                                padding: '8px 16px',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: 'none',
+                                                background: 'var(--accent-gradient)',
+                                                color: 'white',
+                                                fontWeight: '600',
+                                                fontSize: '13px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                boxShadow: 'var(--shadow-glow)'
+                                            }}
+                                        >
+                                            <UserPlus size={14} />
+                                            Select as admin
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="6" className="no-results">
+                                    No members found matching your criteria.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

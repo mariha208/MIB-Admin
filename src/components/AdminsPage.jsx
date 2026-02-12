@@ -5,24 +5,28 @@ import { useData } from '../context/DataContext';
 export default function AdminsPage({ onNavigate }) {
     const { data, updateUser } = useData();
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterCity, setFilterCity] = useState('');
-    const [filterChapter, setFilterChapter] = useState('');
 
     const filteredUsers = useMemo(() => {
-        return data.users.filter(user => {
+        // First filter for role and search/city/chapter criteria
+        const baseFiltered = data.users.filter(user => {
+            const isCityAdmin = user.role === 'City Admin';
             const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 user.id.toString().includes(searchQuery);
-            const matchesCity = filterCity === '' || user.city === filterCity;
-            const matchesChapter = filterChapter === '' || user.chapter === filterChapter;
 
-            return matchesSearch && matchesCity && matchesChapter;
+            return isCityAdmin && matchesSearch;
         });
-    }, [data.users, searchQuery, filterCity, filterChapter]);
+
+        // Then ensure uniqueness: only one admin per City + Chapter pair
+        const seen = new Set();
+        return baseFiltered.filter(user => {
+            const key = `${user.city}-${user.chapter}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }, [data.users, searchQuery]);
 
     const uniqueCities = [...new Set(data.users.map(u => u.city))];
-    const availableChapters = data.chapters
-        .filter(c => !filterCity || c.city === filterCity)
-        .map(c => c.name);
 
     const handleApproval = (userId, currentRole) => {
         const newRole = currentRole === 'City Admin' ? 'User' : 'City Admin';
@@ -34,7 +38,7 @@ export default function AdminsPage({ onNavigate }) {
         <div className="main-content animate-fade-in">
             <header className="page-header center-header">
                 <div className="header-content">
-                    <h1 className="page-title">City Admins</h1>
+                    <h1 className="page-title">Admins</h1>
                     <p className="page-subtitle">Approve and manage city administrators.</p>
                 </div>
             </header>
@@ -49,36 +53,6 @@ export default function AdminsPage({ onNavigate }) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                    </div>
-
-                    <div className="filter-group">
-                        <div className="filter-select-wrapper">
-                            <select
-                                value={filterCity}
-                                onChange={(e) => {
-                                    setFilterCity(e.target.value);
-                                    setFilterChapter('');
-                                }}
-                            >
-                                <option value="">All Cities</option>
-                                {uniqueCities.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronDown className="select-arrow" size={16} />
-                        </div>
-                    </div>
-
-                    <div className="filter-group">
-                        <div className="filter-select-wrapper">
-                            <select
-                                value={filterChapter}
-                                onChange={(e) => setFilterChapter(e.target.value)}
-                                disabled={!filterCity}
-                            >
-                                <option value="">All Chapters</option>
-                                {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronDown className="select-arrow" size={16} />
-                        </div>
                     </div>
                 </div>
 
@@ -112,6 +86,7 @@ export default function AdminsPage({ onNavigate }) {
                             <th>Name</th>
                             <th>City Name</th>
                             <th>Chapter Name</th>
+                            <th>Password</th>
                             <th>Actions</th>
                             <th>Approval</th>
                         </tr>
@@ -129,6 +104,11 @@ export default function AdminsPage({ onNavigate }) {
                                     </td>
                                     <td>{user.city}</td>
                                     <td>{user.chapter}</td>
+                                    <td>
+                                        <code style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                                            {user.password || '••••••'}
+                                        </code>
+                                    </td>
                                     <td>
                                         <button
                                             className="icon-btn edit"
