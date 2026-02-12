@@ -9,6 +9,8 @@ import LoginDetailPage from './components/LoginDetailPage';
 import LoginPage from './components/LoginPage';
 import ControlsPage from './components/ControlsPage';
 import NotificationsPage from './components/NotificationsPage';
+import AdminsPage from './components/AdminsPage';
+import AdminForm from './components/AdminForm';
 import { useData } from './context/DataContext';
 import './index.css';
 
@@ -172,6 +174,12 @@ function App() {
           <LoginDetailPage />
         ) : activeNav === 'controls' ? (
           <ControlsPage />
+        ) : activeNav === 'admins' ? (
+          <AdminsPage onNavigate={setActiveNav} />
+        ) : activeNav === 'create-admin' ? (
+          <AdminForm mode="create" onNavigate={setActiveNav} />
+        ) : activeNav.startsWith('edit-admin/') ? (
+          <AdminForm mode="edit" adminId={activeNav.split('/')[1]} onNavigate={setActiveNav} />
         ) : activeNav === 'notifications' ? (
           <main className="main-content">
             <NotificationsPage onNavigate={setActiveNav} />

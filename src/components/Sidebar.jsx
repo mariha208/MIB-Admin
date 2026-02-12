@@ -23,6 +23,7 @@ const navItems = [
     { id: 'referrals', label: 'Referrals', icon: Share2 },
     { id: '1-2-1', label: '1-2-1', icon: UserPlus },
     { id: 'visitors', label: 'Visitors', icon: UserCheck },
+    { id: 'admins', label: 'Admins', icon: Shield },
     { id: 'login', label: 'Pending Users', icon: Settings },
 ];
 
