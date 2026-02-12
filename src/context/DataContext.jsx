@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { getPendingRequests, approvePendingRequest, denyPendingRequest, signIn } from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
 const initialData = {
@@ -25,6 +26,7 @@ const initialData = {
     businessData: [],
     referralsData: [],
     visitorsData: [],
+    pendingRequests: [], // Added pending requests
 };
 
 const DataContext = createContext(null);
@@ -32,6 +34,7 @@ const DataContext = createContext(null);
 export function DataProvider({ children }) {
     const [data, setData] = useState(initialData);
     const [loading, setLoading] = useState(false);
+    const [pendingLoading, setPendingLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // Simulated API fetch - replace with real API calls
@@ -50,6 +53,109 @@ export function DataProvider({ children }) {
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Fetch pending requests from backend API
+    // Accepts optional token parameter for cases where localStorage might not be synced yet
+    const fetchPendingRequests = async (authToken = null) => {
+        console.log('[DataContext] fetchPendingRequests called with token:', authToken ? 'PROVIDED' : 'NOT PROVIDED');
+        
+        // Get token from parameter or localStorage
+        const token = authToken || localStorage.getItem('mib-admin-token');
+        console.log('[DataContext] Token to use:', token ? token.substring(0, 15) + '...' : 'NONE');
+        
+        if (!token) {
+            console.warn('[DataContext] No token available, skipping fetch');
+            return;
+        }
+        
+        setPendingLoading(true);
+        try {
+            const pendingData = await getPendingRequests(token);
+            console.log('[DataContext] Fetched pending requests:', pendingData);
+            setData(prev => ({
+                ...prev,
+                pendingRequests: Array.isArray(pendingData) ? pendingData : []
+            }));
+            console.log('[DataContext] Pending requests updated in state');
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch pending requests:', err);
+            setError(err.message);
+        } finally {
+            setPendingLoading(false);
+        }
+    };
+
+    // Approve a pending request - moves user from pending to users table
+    const approveRequest = async (requestId) => {
+        try {
+            console.log('[DataContext] Approving request:', requestId);
+            const result = await approvePendingRequest(requestId);
+            console.log('[DataContext] Approve API result:', result);
+            
+            // Find the request that was approved to get its data
+            const approvedRequest = data.pendingRequests.find(req => req.id === requestId);
+            console.log('[DataContext] Approved request data:', approvedRequest);
+            
+            // Get user data from API response or use request data
+            const newUserData = result.data || result.user || {};
+            
+            // Create the new user object to add to users table
+            const newUser = {
+                id: newUserData.userId || newUserData.id || requestId,
+                name: newUserData.name || approvedRequest?.name || 'N/A',
+                email: newUserData.email || approvedRequest?.email || 'N/A',
+                phone: approvedRequest?.phone || approvedRequest?.phoneNumber || 'N/A',
+                transactionDetails: approvedRequest?.transactionId || approvedRequest?.transactionDetails || 'N/A',
+                city: approvedRequest?.city || 'N/A',
+                cityId: approvedRequest?.cityId || 'N/A',
+                chapter: approvedRequest?.chapter || 'N/A',
+                chapterId: approvedRequest?.chapterId || 'N/A',
+                business: '₹0',
+                referrals: 0,
+                visitors: 0,
+                one2one: 0,
+                status: 'Active'
+            };
+            
+            console.log('[DataContext] New user to add:', newUser);
+            
+            // Update local state:
+            // 1. Remove from pendingRequests
+            // 2. Add to users array
+            setData(prev => ({
+                ...prev,
+                pendingRequests: prev.pendingRequests.filter(req => req.id !== requestId),
+                users: [...prev.users, newUser]
+            }));
+            
+            console.log('[DataContext] User moved from pending to users table');
+            return { success: true, user: newUser };
+        } catch (err) {
+            console.error('[DataContext] Failed to approve request:', err);
+            throw err;
+        }
+    };
+
+    // Deny a pending request - removes from pending requests
+    const denyRequest = async (requestId) => {
+        try {
+            console.log('[DataContext] Denying request:', requestId);
+            await denyPendingRequest(requestId);
+            console.log('[DataContext] Deny API call successful');
+            
+            // Remove from pendingRequests
+            setData(prev => ({
+                ...prev,
+                pendingRequests: prev.pendingRequests.filter(req => req.id !== requestId)
+            }));
+            
+            console.log('[DataContext] Request removed from pending list');
+            return { success: true };
+        } catch (err) {
+            console.error('[DataContext] Failed to deny request:', err);
+            throw err;
         }
     };
 
@@ -112,59 +218,108 @@ export function DataProvider({ children }) {
         return null;
     });
 
-    const login = (email, password) => {
-        // Hardcoded credentials as requested
-        const validUsers = [
-            {
-                email: "Admin@gmail.com",
-                password: "Admin1234",
-                name: "Main Admin",
-                role: "Super Administrator"
-            },
-            {
-                email: "SuratAdmin@gmail.com",
-                password: "SuratAdmin1234",
-                name: "Surat Admin",
-                role: "Region Administrator"
-            }
-        ];
+    const [loginLoading, setLoginLoading] = useState(false);
 
-        const match = validUsers.find(u => u.email === email && u.password === password);
-
-        if (match) {
+    const login = async (email, password) => {
+        console.log('[DataContext] login called with email:', email);
+        setLoginLoading(true);
+        
+        try {
+            console.log('[DataContext] Calling signIn API...');
+            const response = await signIn(email, password);
+            console.log('[DataContext] signIn API response:', response);
+            
+            // Extract user data from the response
+            // Adjust based on your actual API response structure
+            const userData = response.user || response.data || response;
+            console.log('[DataContext] Extracted user data:', userData);
+            
             const loggedInUser = {
-                name: match.name,
-                email: email,
-                password: password,
-                role: match.role,
-                avatar: match.name.charAt(0)
+                id: userData.id,
+                name: userData.name || userData.email?.split('@')[0] || 'User',
+                email: userData.email || email,
+                role: userData.role || 'Administrator',
+                avatar: (userData.name || email).charAt(0).toUpperCase(),
+                token: response.token || userData.token,
             };
+            
+            console.log('[DataContext] Setting logged in user:', loggedInUser);
             setUser(loggedInUser);
             localStorage.setItem('mib-admin-user', JSON.stringify(loggedInUser));
-            return true;
+            
+            // Extract token from various possible response structures
+            // Your backend returns: { success: true, user: { token: "...", ... } }
+            const token = response.token || 
+                          response.user?.token ||
+                          response.accessToken || 
+                          response.data?.token || 
+                          response.data?.accessToken ||
+                          userData.token ||
+                          userData.accessToken;
+            
+            console.log('[DataContext] Token extraction check:');
+            console.log('  - response.token:', response.token);
+            console.log('  - response.user?.token:', response.user?.token);
+            console.log('  - userData.token:', userData.token);
+            console.log('  - Final extracted token:', token ? token.substring(0, 10) + '...' : 'NONE');
+            
+            // Store token if available
+            if (token) {
+                console.log('[DataContext] Storing auth token:', token.substring(0, 10) + '...');
+                localStorage.setItem('mib-admin-token', token);
+                
+                // Fetch pending requests after successful login - pass token directly!
+                console.log('[DataContext] Fetching pending requests with token directly...');
+                await fetchPendingRequests(token);
+            } else {
+                console.warn('[DataContext] WARNING: No token found in login response! Pending requests will not work.');
+            }
+            
+            return { success: true, user: loggedInUser };
+        } catch (error) {
+            console.error('[DataContext] Login failed:', error);
+            return { success: false, error: error.message || 'Login failed' };
+        } finally {
+            setLoginLoading(false);
         }
-        return false;
     };
 
     const logout = () => {
+        console.log('[DataContext] Logging out user');
         setUser(null);
         localStorage.removeItem('mib-admin-user');
+        localStorage.removeItem('mib-admin-token');
+        // Clear pending requests on logout
+        setData(prev => ({ ...prev, pendingRequests: [] }));
     };
 
     useEffect(() => {
         fetchData();
+        // Only fetch pending requests if user is already authenticated (has token)
+        const token = localStorage.getItem('mib-admin-token');
+        if (token) {
+            console.log('[DataContext] User has token, fetching pending requests on mount...');
+            fetchPendingRequests();
+        } else {
+            console.log('[DataContext] No token found, skipping pending requests fetch');
+        }
     }, []);
 
     return (
         <DataContext.Provider value={{
             data,
             loading,
+            pendingLoading,
+            loginLoading,
             error,
             user,
             isAuthenticated: !!user,
             login,
             logout,
             fetchData,
+            fetchPendingRequests,
+            approveRequest,
+            denyRequest,
             updateStat,
             addUser,
             updateUser,
@@ -183,3 +338,4 @@ export function useData() {
     }
     return context;
 }
+

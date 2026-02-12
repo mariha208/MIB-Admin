@@ -1,7 +1,7 @@
 // Data Service - Bridge between Frontend and Backend
-// Replace these functions with actual API calls when backend is ready
+// This connects to the actual backend API
 
-const API_BASE_URL = '/api'; // Change to your actual API URL
+const API_BASE_URL = '/api/v1'; // Using versioned API endpoint
 
 // Helper function for API requests
 async function apiRequest(endpoint, options = {}) {
@@ -22,6 +22,44 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     return response.json();
+}
+
+// Authentication - Sign In
+export async function signIn(email, password) {
+    console.log('[dataService] signIn called with email:', email);
+    
+    try {
+        const url = `${API_BASE_URL}/auth/signin`;
+        console.log('[dataService] Making POST request to:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+        });
+        
+        console.log('[dataService] Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('[dataService] Response data:', data);
+        
+        if (!response.ok) {
+            console.error('[dataService] Sign in failed:', data);
+            throw new Error(data.message || data.error || `Sign in failed: ${response.status}`);
+        }
+        
+        console.log('[dataService] Sign in successful:', data);
+        console.log('[dataService] Token locations in response:');
+        console.log('  - data.token:', data.token);
+        console.log('  - data.user?.token:', data.user?.token);
+        console.log('  - data.accessToken:', data.accessToken);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Sign in error:', error);
+        throw error;
+    }
 }
 
 // Dashboard Stats
@@ -95,3 +133,155 @@ export async function getVisitors(filters = {}) {
     // TODO: return apiRequest('/visitors', { ...filters });
     return [];
 }
+
+// Helper function to get auth token from localStorage
+export function getAuthToken() {
+    const token = localStorage.getItem('mib-admin-token');
+    console.log('[dataService] getAuthToken - token:', token ? token.substring(0, 15) + '...' : 'NULL');
+    return token;
+}
+
+// Pending User Requests - Connected to actual backend
+// Now accepts token as parameter for reliability
+export async function getPendingRequests(token = null) {
+    console.log('[dataService] getPendingRequests called');
+    
+    // Use provided token or try to get from localStorage
+    const authToken = token || getAuthToken();
+    console.log('[dataService] Using token:', authToken ? authToken.substring(0, 15) + '...' : 'NONE');
+    
+    if (!authToken) {
+        console.warn('[dataService] No auth token available, returning empty array');
+        return [];
+    }
+    
+    try {
+        const url = `${API_BASE_URL}/admin/pending-requests`;
+        console.log('[dataService] Making GET request to:', url);
+        console.log('[dataService] Authorization header: Bearer', authToken.substring(0, 10) + '...');
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+            },
+        });
+        
+        console.log('[dataService] Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('[dataService] Response data:', data);
+        
+        if (!response.ok) {
+            console.error('[dataService] Failed to fetch pending requests:', data);
+            throw new Error(data.message || data.error || `Failed to fetch: ${response.status}`);
+        }
+        
+        // Handle the response structure from your backend
+        // Your backend returns: { data: { requests: [...], count: N } }
+        
+        // Check for nested data.data.requests structure
+        if (data.data && data.data.requests) {
+            console.log('[dataService] Returning pending requests from data.data.requests:', data.data.requests);
+            return data.data.requests;
+        }
+        
+        // Check for data.requests structure
+        if (data.requests) {
+            console.log('[dataService] Returning pending requests from data.requests:', data.requests);
+            return data.requests;
+        }
+        
+        // Fallback for data.data array structure
+        if (data.data && Array.isArray(data.data)) {
+            console.log('[dataService] Returning pending requests from data.data:', data.data);
+            return data.data;
+        }
+        
+        // If it's already an array, return it
+        if (Array.isArray(data)) {
+            console.log('[dataService] Returning raw array:', data);
+            return data;
+        }
+        
+        console.log('[dataService] Returning raw response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching pending requests:', error);
+        throw error;
+    }
+}
+
+export async function approvePendingRequest(requestId) {
+    console.log('[dataService] approvePendingRequest called for ID:', requestId);
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error('No authentication token found. Please login first.');
+        }
+        
+        const url = `${API_BASE_URL}/admin/pending-requests/${requestId}/approve`;
+        console.log('[dataService] Making POST request to:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        
+        console.log('[dataService] Approve response status:', response.status);
+        
+        const data = await response.json();
+        console.log('[dataService] Approve response data:', data);
+        
+        if (!response.ok) {
+            throw new Error(data.message || data.error || `Failed to approve: ${response.status}`);
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error approving request:', error);
+        throw error;
+    }
+}
+
+export async function denyPendingRequest(requestId) {
+    console.log('[dataService] denyPendingRequest called for ID:', requestId);
+    
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error('No authentication token found. Please login first.');
+        }
+        
+        const url = `${API_BASE_URL}/admin/pending-requests/${requestId}/deny`;
+        console.log('[dataService] Making POST request to:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        
+        console.log('[dataService] Deny response status:', response.status);
+        
+        const data = await response.json();
+        console.log('[dataService] Deny response data:', data);
+        
+        if (!response.ok) {
+            throw new Error(data.message || data.error || `Failed to deny: ${response.status}`);
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error denying request:', error);
+        throw error;
+    }
+}
+

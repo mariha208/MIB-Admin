@@ -13,17 +13,23 @@ export default function LoginPage() {
         e.preventDefault();
         setError('');
         setIsLoading(true);
+        
+        console.log('[LoginPage] Submitting login form with email:', email);
 
         try {
-            // Small delay to simulate API call and show loading state
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            const success = login(email, password);
-            if (!success) {
-                setError('Invalid email or password');
+            // Call the async login function
+            const result = await login(email, password);
+            console.log('[LoginPage] Login result:', result);
+            
+            if (!result.success) {
+                console.error('[LoginPage] Login failed:', result.error);
+                setError(result.error || 'Invalid email or password');
+            } else {
+                console.log('[LoginPage] Login successful!');
             }
         } catch (err) {
-            setError('An error occurred during login');
+            console.error('[LoginPage] Login error caught:', err);
+            setError(err.message || 'An error occurred during login');
         } finally {
             setIsLoading(false);
         }

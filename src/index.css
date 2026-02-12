@@ -1,17 +1,17 @@
 :root {
   /* New MIB Color Theme */
-  --bg-primary: #1C2336;
+  --bg-primary: #1c2336;
   /* Dark Grey Blue */
   --bg-secondary: #0e0d0d;
   /* Dark Grey Green */
-  --bg-card: linear-gradient(145deg, #273327 0%, #1C2336 100%);
-  --bg-sidebar: linear-gradient(180deg, #1C2336 0%, #171c2b 100%);
+  --bg-card: linear-gradient(145deg, #273327 0%, #1c2336 100%);
+  --bg-sidebar: linear-gradient(180deg, #1c2336 0%, #171c2b 100%);
 
-  --accent-primary: #B49164;
+  --accent-primary: #b49164;
   /* GreyOrange Primary */
-  --accent-secondary: #C5A57B;
+  --accent-secondary: #c5a57b;
   /* GreyOrange Secondary */
-  --accent-gradient: linear-gradient(135deg, #B49164 0%, #C5A57B 100%);
+  --accent-gradient: linear-gradient(135deg, #b49164 0%, #c5a57b 100%);
 
   --text-primary: #ffffff;
   --text-secondary: #a0a0b8;
@@ -35,7 +35,8 @@
   --radius-xl: 24px;
 
   /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -52,32 +53,33 @@
   /* Chart Colors */
   --chart-grid: rgba(180, 145, 100, 0.1);
   --chart-axis: #a0a0b8;
-  --chart-1: #B49164;
+  --chart-1: #b49164;
   --chart-2: #273327;
-  --chart-3: #4A5568;
+  --chart-3: #4a5568;
   --chart-4: #718096;
 
   --hover-bg: rgba(180, 145, 100, 0.15);
 }
 
 .theme-light {
-  --bg-primary: #F8FAFC;
-  --bg-secondary: #F1F5F9;
-  --bg-card: #E1E8E1;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #e1e8e1;
   /* Soft Sage Green */
-  --bg-sidebar: #FFFFFF;
-  --text-primary: #1C2336;
+  --bg-sidebar: #ffffff;
+  --text-primary: #1c2336;
   /* MIB Dark Blue for contrast */
-  --text-secondary: #4A5D4A;
+  --text-secondary: #4a5d4a;
   --text-muted: #758675;
   --border-color: rgba(39, 51, 39, 0.1);
-  --shadow-glow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-glow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --chart-grid: rgba(39, 51, 39, 0.1);
-  --chart-axis: #4A5D4A;
+  --chart-axis: #4a5d4a;
   --hover-bg: rgba(39, 51, 39, 0.08);
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 * {
   margin: 0;
@@ -215,7 +217,7 @@ body {
 }
 
 .nav-item::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -388,7 +390,8 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) var(--spacing-2xl);
+  padding: var(--spacing-md) var(--spacing-md) var(--spacing-md)
+    var(--spacing-2xl);
   color: var(--text-primary);
   font-size: var(--font-size-base);
   transition: all var(--transition-base);
@@ -418,7 +421,8 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: var(--spacing-sm) var(--spacing-2xl) var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-2xl) var(--spacing-sm)
+    var(--spacing-md);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   cursor: pointer;
@@ -576,7 +580,7 @@ body {
 }
 
 .stat-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -1095,4 +1099,18 @@ body {
 .outline-btn:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: #a0a0b8;
+}
+
+/* Spinner Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }
