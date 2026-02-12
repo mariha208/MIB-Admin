@@ -22,6 +22,10 @@ const initialData = {
         { id: 102, name: 'Jane Smith', email: 'jane@world.com', password: 'pass', phone: '+91 88776 65544', transactionDetails: 'TXN_MIB_1120', city: 'Mumbai', cityId: 'MUM', chapter: 'Apple', chapterId: '4', business: '₹5.4L', referrals: 28, visitors: 5, one2one: 20, status: 'Active', role: 'City Admin', approvalStatus: 'Approved' },
         { id: 105, name: 'Amit Shah', email: 'amit.s@corp.com', password: 'pass', phone: '+91 91122 33445', transactionDetails: 'TXN_MIB_2209', city: 'Ahmedabad', cityId: 'AHM', chapter: 'Chapter 1', chapterId: '1', business: '₹3.5L', referrals: 18, visitors: 4, one2one: 15, status: 'Active', role: 'City Admin', approvalStatus: 'Approved' },
 
+        // City Level Admins (Chapter: 'All')
+        { id: 401, name: 'Vikram Singh', email: 'vikram@surat.com', password: 'pass', city: 'Surat', chapter: 'All', role: 'City Admin', status: 'Active', approvalStatus: 'Approved' },
+        { id: 402, name: 'Sonal Mehta', email: 'sonal@mumbai.com', password: 'pass', city: 'Mumbai', chapter: 'All', role: 'City Admin', status: 'Active', approvalStatus: 'Approved' },
+
         // Surat - Chapter 1 (10 members)
         ...Array.from({ length: 10 }, (_, i) => ({
             id: 200 + i, name: `Surat C1 Member ${i + 1}`, email: `s1m${i + 1}@mib.com`, password: 'pass', city: 'Surat', chapter: 'Chapter 1', role: 'User', status: 'Active', approvalStatus: 'Approved'

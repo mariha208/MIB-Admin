@@ -2,11 +2,9 @@ import { useState, useMemo } from 'react';
 import { ArrowLeft, Search, ChevronDown, UserPlus, Check } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
-export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
-    const { data, updateStat, updateUser } = useData();
+export default function AdminForm({ mode = 'create', adminId, onNavigate, viewType = 'chapter' }) {
+    const { data, updateUser } = useData();
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterCity, setFilterCity] = useState('');
-    const [filterChapter, setFilterChapter] = useState('');
     const [passwords, setPasswords] = useState({});
 
     const filteredUsers = useMemo(() => {
@@ -15,12 +13,10 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
             const isMember = user.role === 'User';
             const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 user.id.toString().includes(searchQuery);
-            const matchesCity = filterCity === '' || user.city === filterCity;
-            const matchesChapter = filterChapter === '' || user.chapter === filterChapter;
 
-            return isMember && matchesSearch && matchesCity && matchesChapter;
+            return isMember && matchesSearch;
         });
-    }, [data.users, searchQuery, filterCity, filterChapter]);
+    }, [data.users, searchQuery]);
 
     const sortedUsers = useMemo(() => {
         return [...filteredUsers].sort((a, b) => {
@@ -30,33 +26,38 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
         });
     }, [filteredUsers]);
 
-    const uniqueCities = [...new Set(data.users.map(u => u.city))];
-    const availableChapters = data.chapters
-        .filter(c => !filterCity || c.city === filterCity)
-        .map(c => c.name);
 
     const handleSelectAsAdmin = async (userId, userName, city, chapter, userPassword) => {
         const password = userPassword || 'pass'; // Use existing password
 
-        // Check if there's already an admin for this chapter
+        // For City Admins, the target chapter is 'All'
+        const targetChapter = viewType === 'city' ? 'All' : chapter;
+
+        // Check if there's already an admin for this target
         const existingAdmin = data.users.find(u =>
             u.city === city &&
-            u.chapter === chapter &&
+            u.chapter === targetChapter &&
             u.role === 'City Admin' &&
             (u.approvalStatus === 'Approved' || !u.approvalStatus)
         );
 
         if (existingAdmin) {
-            alert(`Warning: '${city} - ${chapter}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease remove the existing admin first.`);
+            const level = viewType === 'city' ? 'City' : `Chapter (${chapter})`;
+            alert(`Warning: '${city} - ${level}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease remove the existing admin first.`);
             return;
         }
 
-        if (window.confirm(`Are you sure you want to make ${userName} the Admin for ${city} - ${chapter}?`)) {
+        const confirmMsg = viewType === 'city'
+            ? `Are you sure you want to make ${userName} the Admin for the entire city of ${city}?`
+            : `Are you sure you want to make ${userName} the Admin for ${city} - ${chapter}?`;
+
+        if (window.confirm(confirmMsg)) {
             try {
                 await updateUser(userId, {
                     role: 'City Admin',
                     approvalStatus: 'Approved',
-                    password: password
+                    password: password,
+                    chapter: targetChapter
                 });
                 onNavigate('admins');
             } catch (error) {
@@ -90,8 +91,8 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
                     >
                         <ArrowLeft size={18} /> Back
                     </button>
-                    <h1 className="page-title">Select New Admin</h1>
-                    <p className="page-subtitle">Search and select a member to assign as a City Admin.</p>
+                    <h1 className="page-title">Select {viewType === 'city' ? 'City' : 'Chapter'} Admin</h1>
+                    <p className="page-subtitle">Search and select a member to assign as a {viewType === 'city' ? 'City' : 'Chapter'} Admin.</p>
                 </div>
             </header>
 
@@ -105,36 +106,6 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                    </div>
-
-                    <div className="filter-group">
-                        <div className="filter-select-wrapper">
-                            <select
-                                value={filterCity}
-                                onChange={(e) => {
-                                    setFilterCity(e.target.value);
-                                    setFilterChapter('');
-                                }}
-                            >
-                                <option value="">All Cities</option>
-                                {uniqueCities.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronDown className="select-arrow" size={16} />
-                        </div>
-                    </div>
-
-                    <div className="filter-group">
-                        <div className="filter-select-wrapper">
-                            <select
-                                value={filterChapter}
-                                onChange={(e) => setFilterChapter(e.target.value)}
-                                disabled={!filterCity}
-                            >
-                                <option value="">All Chapters</option>
-                                {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronDown className="select-arrow" size={16} />
-                        </div>
                     </div>
                 </div>
             </div>

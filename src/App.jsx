@@ -176,8 +176,12 @@ function App() {
           <ControlsPage />
         ) : activeNav === 'admins' ? (
           <AdminsPage onNavigate={setActiveNav} />
-        ) : activeNav === 'create-admin' ? (
-          <AdminForm mode="create" onNavigate={setActiveNav} />
+        ) : activeNav === 'create-admin' || activeNav.startsWith('create-admin/') ? (
+          <AdminForm
+            mode="create"
+            viewType={activeNav.includes('/') ? activeNav.split('/')[1] : 'chapter'}
+            onNavigate={setActiveNav}
+          />
         ) : activeNav.startsWith('edit-admin/') ? (
           <AdminForm mode="edit" adminId={activeNav.split('/')[1]} onNavigate={setActiveNav} />
         ) : activeNav === 'notifications' ? (
