@@ -39,8 +39,22 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            // Uniqueness Validation
+            const existingAdmin = data.users.find(u =>
+                u.city === formData.city &&
+                u.chapter === formData.chapter &&
+                u.role === 'City Admin' &&
+                (u.approvalStatus === 'Approved' || !u.approvalStatus) &&
+                (mode === 'create' || u.id !== parseInt(adminId))
+            );
+
+            if (existingAdmin) {
+                alert(`Warning: '${formData.city} - ${formData.chapter}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease choose a different City/Chapter or remove the existing admin first.`);
+                return;
+            }
+
             if (mode === 'create') {
-                await addUser({ ...formData, status: 'Active' });
+                await addUser({ ...formData, status: 'Active', approvalStatus: 'Approved' });
             } else {
                 await updateUser(parseInt(adminId), formData);
             }
@@ -80,12 +94,12 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
                             cursor: 'pointer',
                             position: 'absolute',
                             left: 0,
-                            top: '50%',
+                            top: '150%',
                             transform: 'translateY(-50%)',
-                            fontSize: '14px'
+                            fontSize: '18px'
                         }}
                     >
-                        <ArrowLeft size={16} /> Back
+                        <ArrowLeft size={18} /> Back
                     </button>
                     <h1 className="page-title">{mode === 'create' ? 'Create New Admin' : 'Edit Admin'}</h1>
                 </div>

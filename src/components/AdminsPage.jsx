@@ -139,34 +139,75 @@ export default function AdminsPage({ onNavigate }) {
                                         </button>
                                     </td>
                                     <td>
-                                        <button
-                                            className={`action-btn`}
-                                            onClick={() => handleApproval(user.id, user.role)}
-                                            style={{
-                                                padding: '6px 12px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                background: user.role === 'City Admin' ? 'rgba(255, 118, 117, 0.1)' : 'rgba(0, 184, 148, 0.1)',
-                                                color: user.role === 'City Admin' ? '#ff7675' : '#00b894',
-                                                transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            {user.role === 'City Admin' ? (
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            {!user.approvalStatus || user.approvalStatus === 'Pending' ? (
                                                 <>
-                                                    <X size={14} /> Revoke Admin
+                                                    <button
+                                                        className="action-btn"
+                                                        onClick={() => {
+                                                            const existingAdmin = data.users.find(u =>
+                                                                u.city === user.city &&
+                                                                u.chapter === user.chapter &&
+                                                                u.role === 'City Admin' &&
+                                                                (u.approvalStatus === 'Approved' || !u.approvalStatus) &&
+                                                                u.id !== user.id
+                                                            );
+
+                                                            if (existingAdmin) {
+                                                                alert(`Warning: '${user.city} - ${user.chapter}' already has an assigned Admin (${existingAdmin.name}).\n\nA Chapter can only have one City Admin.`);
+                                                                return;
+                                                            }
+
+                                                            updateUser(user.id, { role: 'City Admin', approvalStatus: 'Approved' });
+                                                        }}
+                                                        title="Approve as City Admin"
+                                                        style={{
+                                                            padding: '6px',
+                                                            borderRadius: '6px',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            background: 'rgba(0, 184, 148, 0.1)',
+                                                            color: '#00b894',
+                                                            transition: 'all 0.2s',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        <Check size={16} />
+                                                    </button>
+                                                    <button
+                                                        className="action-btn"
+                                                        onClick={() => updateUser(user.id, { role: 'User', approvalStatus: 'Rejected' })}
+                                                        title="Revoke Admin Access"
+                                                        style={{
+                                                            padding: '6px',
+                                                            borderRadius: '6px',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            background: 'rgba(255, 118, 117, 0.1)',
+                                                            color: '#ff7675',
+                                                            transition: 'all 0.2s',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
                                                 </>
                                             ) : (
-                                                <>
-                                                    <Check size={14} /> Approve as City Admin
-                                                </>
+                                                <span
+                                                    style={{
+                                                        color: user.approvalStatus === 'Approved' ? '#00b894' : '#ff7675',
+                                                        fontWeight: '600',
+                                                        fontSize: '13px'
+                                                    }}
+                                                >
+                                                    {user.approvalStatus}
+                                                </span>
                                             )}
-                                        </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
