@@ -6,9 +6,6 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
     const { data, addUser, updateUser, deleteUser } = useData();
     const [formData, setFormData] = useState({
         name: '',
-        email: '',
-        password: '',
-        phone: '',
         city: '',
         chapter: '',
         role: 'City Admin'
@@ -19,15 +16,17 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
         .filter(c => !formData.city || c.city === formData.city)
         .map(c => c.name);
 
+    const availableMembers = data.users.filter(u =>
+        u.city === formData.city &&
+        u.chapter === formData.chapter
+    );
+
     useEffect(() => {
         if (mode === 'edit' && adminId) {
             const admin = data.users.find(u => u.id === parseInt(adminId));
             if (admin) {
                 setFormData({
                     name: admin.name || '',
-                    email: admin.email || '',
-                    password: admin.password || '',
-                    phone: admin.phone || '',
                     city: admin.city || '',
                     chapter: admin.chapter || '',
                     role: admin.role || 'City Admin'
@@ -115,69 +114,6 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
 
                     <div className="form-section">
                         <h3 className="section-label" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                            Personal Information
-                        </h3>
-                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Full Name</label>
-                                <input
-                                    required
-                                    type="text"
-                                    className="control-input"
-                                    style={{ width: '100%' }}
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="Enter full name"
-                                />
-                            </div>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Phone Number</label>
-                                <input
-                                    type="tel"
-                                    className="control-input"
-                                    style={{ width: '100%' }}
-                                    value={formData.phone}
-                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                    placeholder="+91..."
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="form-section" style={{ marginTop: '24px' }}>
-                        <h3 className="section-label" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                            Account Details
-                        </h3>
-                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Email Address</label>
-                                <input
-                                    required
-                                    type="email"
-                                    className="control-input"
-                                    style={{ width: '100%' }}
-                                    value={formData.email}
-                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="admin@example.com"
-                                />
-                            </div>
-                            <div className="input-group">
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Password</label>
-                                <input
-                                    required={mode === 'create'}
-                                    type="text"
-                                    className="control-input"
-                                    style={{ width: '100%' }}
-                                    value={formData.password}
-                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                    placeholder={mode === 'edit' ? "Leave blank to keep current" : "Set password"}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="form-section" style={{ marginTop: '24px' }}>
-                        <h3 className="section-label" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                             Assignment
                         </h3>
                         <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -189,7 +125,7 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
                                         className="control-input"
                                         style={{ width: '100%' }}
                                         value={formData.city}
-                                        onChange={e => setFormData({ ...formData, city: e.target.value, chapter: '' })}
+                                        onChange={e => setFormData({ ...formData, city: e.target.value, chapter: '', name: '' })}
                                     >
                                         <option value="">Select City</option>
                                         {uniqueCities.map(city => (
@@ -206,12 +142,38 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate }) {
                                         className="control-input"
                                         style={{ width: '100%' }}
                                         value={formData.chapter}
-                                        onChange={e => setFormData({ ...formData, chapter: e.target.value })}
+                                        onChange={e => setFormData({ ...formData, chapter: e.target.value, name: '' })}
                                         disabled={!formData.city}
                                     >
                                         <option value="">Select Chapter</option>
                                         {availableChapters.map(chapter => (
                                             <option key={chapter} value={chapter}>{chapter}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-section" style={{ marginTop: '24px' }}>
+                        <h3 className="section-label" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                            Admin Details
+                        </h3>
+                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+                            <div className="input-group">
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>Select Member</label>
+                                <div className="filter-select-wrapper">
+                                    <select
+                                        required
+                                        className="control-input"
+                                        style={{ width: '100%' }}
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        disabled={!formData.chapter}
+                                    >
+                                        <option value="">{formData.chapter ? 'Select Member' : 'Select Chapter first'}</option>
+                                        {availableMembers.map(member => (
+                                            <option key={member.id} value={member.name}>{member.name}</option>
                                         ))}
                                     </select>
                                 </div>
