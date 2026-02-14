@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, ChevronDown, UserPlus, Loader2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -11,9 +12,19 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
 
     const [selectedMemberId, setSelectedMemberId] = useState('');
     const [memberSearch, setMemberSearch] = useState('');
+=======
+import { useState, useMemo } from 'react';
+import { ArrowLeft, Search, Check } from 'lucide-react';
+import { useData } from '../context/DataContext';
+
+export default function AdminForm({ mode = 'create', onNavigate, viewType = 'chapter' }) {
+    const { data, updateUser } = useData();
+    const [searchQuery, setSearchQuery] = useState('');
+>>>>>>> bc627f227f0ec410f603ff2e2362f302eefdc02c
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingMembers, setIsFetchingMembers] = useState(false);
 
+<<<<<<< HEAD
     // Fetch members on mount
     useEffect(() => {
         loadMembers();
@@ -51,6 +62,39 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
         const confirmMsg = viewType === 'city'
             ? `Are you sure you want to make "${selectedMember.name}" a City Admin for "${selectedMember.cityName || cityId}"?`
             : `Are you sure you want to make "${selectedMember.name}" a Chapter Admin?`;
+=======
+    // Filter available members based on search and role
+    const availableMembers = useMemo(() => {
+        return data.users.filter(user => {
+            const isUser = user.role === 'User';
+            const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                user.id.toString().includes(searchQuery);
+
+            return isUser && matchesSearch;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [data.users, searchQuery]);
+
+    const handleAssign = async (member) => {
+        const targetChapter = viewType === 'city' ? 'All' : member.chapter;
+
+        // Check if there's already an admin for this location
+        const existingAdmin = data.users.find(u =>
+            u.city === member.city &&
+            u.chapter === targetChapter &&
+            u.role === 'City Admin' &&
+            (u.approvalStatus === 'Approved' || !u.approvalStatus)
+        );
+
+        if (existingAdmin) {
+            const level = viewType === 'city' ? `City (${member.city})` : `Chapter (${member.chapter} in ${member.city})`;
+            alert(`Warning: '${level}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease remove the existing admin first.`);
+            return;
+        }
+
+        const confirmMsg = viewType === 'city'
+            ? `Are you sure you want to make ${member.name} the Admin for the entire city of ${member.city}?`
+            : `Are you sure you want to make ${member.name} the Admin for ${member.city} - ${member.chapter}?`;
+>>>>>>> bc627f227f0ec410f603ff2e2362f302eefdc02c
 
         if (window.confirm(confirmMsg)) {
             setIsLoading(true);
@@ -100,10 +144,11 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
                         <ArrowLeft size={20} /> Back
                     </button>
                     <h1 className="page-title">Assign {viewType === 'city' ? 'City' : 'Chapter'} Admin</h1>
-                    <p className="page-subtitle">Select a member to assign as administrator.</p>
+                    <p className="page-subtitle">Select a member from the table to assign as administrator.</p>
                 </div>
             </header>
 
+<<<<<<< HEAD
             <div className="form-container" style={{
                 maxWidth: '700px',
                 margin: '40px auto',
@@ -140,8 +185,21 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
                             <Loader2 size={16} className="spin" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-primary)' }} />
                         )}
                     </div>
+=======
+            <div className="table-controls" style={{ marginBottom: '24px' }}>
+                <div className="search-box" style={{ maxWidth: '400px', margin: '0 auto' }}>
+                    <Search className="search-icon" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search members by name or ID..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+>>>>>>> bc627f227f0ec410f603ff2e2362f302eefdc02c
                 </div>
+            </div>
 
+<<<<<<< HEAD
                 {/* Members List */}
                 <div className="form-group" style={{ marginBottom: '32px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
@@ -265,6 +323,75 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
                         </>
                     )}
                 </button>
+=======
+            <div className="table-container">
+                <table className="data-table">
+                    <thead>
+                        {viewType === 'chapter' ? (
+                            <tr>
+                                <th>User ID</th>
+                                <th>Name</th>
+                                <th>City name</th>
+                                <th>ChapterName</th>
+                                <th style={{ textAlign: 'center' }}>Select as Admin</th>
+                            </tr>
+                        ) : (
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>City Name</th>
+                                <th style={{ textAlign: 'center' }}>Select as Admin</th>
+                            </tr>
+                        )}
+                    </thead>
+                    <tbody>
+                        {availableMembers.length > 0 ? (
+                            availableMembers.map((member) => (
+                                <tr key={member.id}>
+                                    <td><span className="id-badge">#{member.id}</span></td>
+                                    <td>
+                                        <div className="user-info">
+                                            <div className="user-avatar">{member.name.charAt(0)}</div>
+                                            <div>
+                                                <div className="user-name">{member.name}</div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({member.chapter})</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{member.city}</td>
+                                    {viewType === 'chapter' && <td>{member.chapter}</td>}
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button
+                                            onClick={() => handleAssign(member)}
+                                            disabled={isLoading}
+                                            style={{
+                                                padding: '8px 16px',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: 'none',
+                                                background: 'var(--accent-gradient)',
+                                                color: 'white',
+                                                fontWeight: '600',
+                                                fontSize: '13px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.3s ease',
+                                                boxShadow: 'var(--shadow-glow)'
+                                            }}
+                                        >
+                                            Select as Admin
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={viewType === 'chapter' ? 5 : 4} className="no-results">
+                                    No members found matching your search.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+>>>>>>> bc627f227f0ec410f603ff2e2362f302eefdc02c
             </div>
         </div>
     );
