@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getPendingRequests, approvePendingRequest, denyPendingRequest, signIn } from '../services/dataService';
+import {
+    getPendingRequests, approvePendingRequest, denyPendingRequest, signIn,
+    getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin
+} from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
 const initialData = {
@@ -77,6 +80,12 @@ export function DataProvider({ children }) {
     const [loading, setLoading] = useState(false);
     const [pendingLoading, setPendingLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Admin management state
+    const [cityAdmins, setCityAdmins] = useState([]);
+    const [chapterAdmins, setChapterAdmins] = useState([]);
+    const [adminsLoading, setAdminsLoading] = useState(false);
+    const [membersForAssignment, setMembersForAssignment] = useState([]);
 
     // Simulated API fetch - replace with real API calls
     const fetchData = async () => {
@@ -258,6 +267,85 @@ export function DataProvider({ children }) {
         // TODO: API call to add chapter
     };
 
+    // ==========================================
+    // Admin Management Functions
+    // ==========================================
+
+    const fetchCityAdmins = async (search = '') => {
+        setAdminsLoading(true);
+        try {
+            const admins = await getCityAdmins(search);
+            console.log('[DataContext] Fetched city admins:', admins);
+            setCityAdmins(Array.isArray(admins) ? admins : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch city admins:', err);
+            setError(err.message);
+            setCityAdmins([]);
+        } finally {
+            setAdminsLoading(false);
+        }
+    };
+
+    const fetchChapterAdmins = async (search = '') => {
+        setAdminsLoading(true);
+        try {
+            const admins = await getChapterAdmins(search);
+            console.log('[DataContext] Fetched chapter admins:', admins);
+            setChapterAdmins(Array.isArray(admins) ? admins : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch chapter admins:', err);
+            setError(err.message);
+            setChapterAdmins([]);
+        } finally {
+            setAdminsLoading(false);
+        }
+    };
+
+    const removeAdminById = async (adminId) => {
+        try {
+            console.log('[DataContext] Removing admin:', adminId);
+            await removeAdmin(adminId);
+            // Remove from local state
+            setCityAdmins(prev => prev.filter(a => a.id !== adminId));
+            setChapterAdmins(prev => prev.filter(a => a.id !== adminId));
+            return { success: true };
+        } catch (err) {
+            console.error('[DataContext] Failed to remove admin:', err);
+            throw err;
+        }
+    };
+
+    const fetchMembersForAssignment = async (search = '') => {
+        try {
+            const members = await getMembersForAssignment(search);
+            console.log('[DataContext] Fetched members for assignment:', members);
+            setMembersForAssignment(Array.isArray(members) ? members : []);
+            return Array.isArray(members) ? members : [];
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch members:', err);
+            setMembersForAssignment([]);
+            throw err;
+        }
+    };
+
+    const assignNewAdmin = async (userId, role, cityId, chapterId = null) => {
+        try {
+            console.log('[DataContext] Assigning admin:', { userId, role, cityId, chapterId });
+            const result = await assignAdmin(userId, role, cityId, chapterId);
+            console.log('[DataContext] Admin assigned:', result);
+            // Refresh the admin lists
+            if (role === 'City_Admin') {
+                await fetchCityAdmins();
+            } else {
+                await fetchChapterAdmins();
+            }
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to assign admin:', err);
+            throw err;
+        }
+    };
+
 
 
     // Authentication State
@@ -369,6 +457,7 @@ export function DataProvider({ children }) {
             loading,
             pendingLoading,
             loginLoading,
+            adminsLoading,
             error,
             user,
             isAuthenticated: !!user,
@@ -383,6 +472,15 @@ export function DataProvider({ children }) {
             updateUser,
             deleteUser,
             addChapter,
+            // Admin management
+            cityAdmins,
+            chapterAdmins,
+            membersForAssignment,
+            fetchCityAdmins,
+            fetchChapterAdmins,
+            removeAdminById,
+            fetchMembersForAssignment,
+            assignNewAdmin,
         }}>
             {children}
         </DataContext.Provider>

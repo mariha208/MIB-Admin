@@ -134,6 +134,102 @@ export async function getVisitors(filters = {}) {
     return [];
 }
 
+// ==========================================
+// Admin Management - Connected to backend
+// ==========================================
+
+// Helper for authenticated API requests
+async function authApiRequest(endpoint, options = {}) {
+    const token = localStorage.getItem('mib-admin-token');
+    if (!token) {
+        throw new Error('No authentication token found. Please login first.');
+    }
+
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`[dataService] ${options.method || 'GET'} ${url}`);
+    
+    const config = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        ...options,
+    };
+
+    const response = await fetch(url, config);
+    const data = await response.json();
+    console.log('[dataService] Response:', response.status, data);
+
+    if (!response.ok) {
+        throw new Error(data.message || data.error || `API Error: ${response.status}`);
+    }
+
+    return data;
+}
+
+// Extract array data from various backend response structures
+function extractArrayData(data) {
+    // { data: { admins: [...] } } or { data: { users: [...] } } or { data: [...] }
+    if (data.data) {
+        if (Array.isArray(data.data)) return data.data;
+        if (data.data.admins) return data.data.admins;
+        if (data.data.users) return data.data.users;
+        if (data.data.requests) return data.data.requests;
+        if (data.data.members) return data.data.members;
+    }
+    // { admins: [...] } or { users: [...] }
+    if (data.admins) return data.admins;
+    if (data.users) return data.users;
+    if (data.members) return data.members;
+    // Already an array
+    if (Array.isArray(data)) return data;
+    // Return as-is
+    return data;
+}
+
+// GET City Admins - GET /admins?role=City_Admin
+export async function getCityAdmins(search = '') {
+    let endpoint = '/admins?role=City_Admin';
+    if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+    const data = await authApiRequest(endpoint);
+    return extractArrayData(data);
+}
+
+// GET Chapter Admins - GET /admins?role=Chapter_Admin
+export async function getChapterAdmins(search = '') {
+    let endpoint = '/admins?role=Chapter_Admin';
+    if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+    const data = await authApiRequest(endpoint);
+    return extractArrayData(data);
+}
+
+// DELETE Admin - DELETE /admins/:id (removes admin, back to Member)
+export async function removeAdmin(adminId) {
+    console.log('[dataService] removeAdmin called for ID:', adminId);
+    const data = await authApiRequest(`/admins/${adminId}`, { method: 'DELETE' });
+    return data;
+}
+
+// GET Members for assignment - GET /users?membersOnly=true
+export async function getMembersForAssignment(search = '') {
+    let endpoint = '/users?membersOnly=true';
+    if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+    const data = await authApiRequest(endpoint);
+    return extractArrayData(data);
+}
+
+// POST Assign Admin - POST /assign-admin
+export async function assignAdmin(userId, role, cityId, chapterId = null) {
+    console.log('[dataService] assignAdmin called:', { userId, role, cityId, chapterId });
+    const body = { userId, role, cityId };
+    if (chapterId) body.chapterId = chapterId;
+    const data = await authApiRequest('/assign-admin', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    return data;
+}
+
 // Helper function to get auth token from localStorage
 export function getAuthToken() {
     const token = localStorage.getItem('mib-admin-token');

@@ -1,83 +1,71 @@
-import { useState, useMemo } from 'react';
-import { ArrowLeft, Search, ChevronDown, UserPlus, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Search, ChevronDown, UserPlus, Loader2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 export default function AdminForm({ mode = 'create', adminId, onNavigate, viewType = 'chapter' }) {
-    const { data, updateUser } = useData();
-    const [selectedCity, setSelectedCity] = useState('');
-    const [selectedChapter, setSelectedChapter] = useState('');
+    const {
+        membersForAssignment,
+        fetchMembersForAssignment,
+        assignNewAdmin,
+    } = useData();
+
     const [selectedMemberId, setSelectedMemberId] = useState('');
+    const [memberSearch, setMemberSearch] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isFetchingMembers, setIsFetchingMembers] = useState(false);
 
-    // Get unique cities from users
-    const cities = useMemo(() => {
-        const uniqueCities = [...new Set(data.users.map(u => u.city))].sort();
-        return uniqueCities;
-    }, [data.users]);
+    // Fetch members on mount
+    useEffect(() => {
+        loadMembers();
+    }, []);
 
-    // Get chapters based on selected city
-    const chapters = useMemo(() => {
-        if (!selectedCity) return [];
-        const cityChapters = data.users
-            .filter(u => u.city === selectedCity && u.chapter !== 'All')
-            .map(u => u.chapter);
-        return [...new Set(cityChapters)].sort();
-    }, [data.users, selectedCity]);
+    // Debounced search for members
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadMembers(memberSearch);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [memberSearch]);
 
-    // Get available members based on selection
-    const availableMembers = useMemo(() => {
-        if (!selectedCity) return [];
-        if (viewType === 'chapter' && !selectedChapter) return [];
+    const loadMembers = async (search = '') => {
+        setIsFetchingMembers(true);
+        try {
+            await fetchMembersForAssignment(search);
+        } catch (error) {
+            console.error('Failed to fetch members:', error);
+        } finally {
+            setIsFetchingMembers(false);
+        }
+    };
 
-        return data.users.filter(user => {
-            const matchesCity = user.city === selectedCity;
-            const matchesChapter = viewType === 'city' ? true : user.chapter === selectedChapter;
-            const isUser = user.role === 'User';
-
-            // For city admin, we want to see all users in that city
-            // For chapter admin, we want to see users in that specific chapter
-            return matchesCity && matchesChapter && isUser;
-        }).sort((a, b) => a.name.localeCompare(b.name));
-    }, [data.users, selectedCity, selectedChapter, viewType]);
+    const selectedMember = membersForAssignment.find(
+        m => m.id === selectedMemberId || m.id?.toString() === selectedMemberId
+    );
 
     const handleAssign = async () => {
-        if (!selectedMemberId) return;
+        if (!selectedMember) return;
 
-        const member = data.users.find(u => u.id.toString() === selectedMemberId);
-        if (!member) return;
-
-        // Validation for existing admin
-        const targetChapter = viewType === 'city' ? 'All' : selectedChapter;
-
-        const existingAdmin = data.users.find(u =>
-            u.city === selectedCity &&
-            u.chapter === targetChapter &&
-            u.role === 'City Admin' &&
-            (u.approvalStatus === 'Approved' || !u.approvalStatus)
-        );
-
-        if (existingAdmin) {
-            const level = viewType === 'city' ? 'City' : `Chapter (${selectedChapter})`;
-            alert(`Warning: '${selectedCity} - ${level}' already has an assigned Admin (${existingAdmin.name}).\n\nPlease remove the existing admin first.`);
-            return;
-        }
+        const role = viewType === 'city' ? 'City_Admin' : 'Chapter_Admin';
+        const cityId = selectedMember.cityId || selectedMember.city;
 
         const confirmMsg = viewType === 'city'
-            ? `Are you sure you want to make ${member.name} the Admin for the entire city of ${selectedCity}?`
-            : `Are you sure you want to make ${member.name} the Admin for ${selectedCity} - ${selectedChapter}?`;
+            ? `Are you sure you want to make "${selectedMember.name}" a City Admin for "${selectedMember.cityName || cityId}"?`
+            : `Are you sure you want to make "${selectedMember.name}" a Chapter Admin?`;
 
         if (window.confirm(confirmMsg)) {
             setIsLoading(true);
             try {
-                await updateUser(member.id, {
-                    role: 'City Admin',
-                    approvalStatus: 'Approved',
-                    chapter: targetChapter
-                });
+                await assignNewAdmin(
+                    selectedMember.id,
+                    role,
+                    cityId,
+                    viewType === 'chapter' ? (selectedMember.chapterId || selectedMember.chapter) : null
+                );
+                alert('Admin assigned successfully!');
                 onNavigate('admins');
             } catch (error) {
-                console.error('Failed to promote user:', error);
-                alert('Failed to promote user. Please try again.');
+                console.error('Failed to assign admin:', error);
+                alert(`Failed to assign admin: ${error.message}`);
             } finally {
                 setIsLoading(false);
             }
@@ -117,7 +105,7 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
             </header>
 
             <div className="form-container" style={{
-                maxWidth: '600px',
+                maxWidth: '700px',
                 margin: '40px auto',
                 padding: '32px',
                 background: 'var(--bg-secondary)',
@@ -125,98 +113,125 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
                 border: '1px solid rgba(255, 255, 255, 0.05)',
                 boxShadow: 'var(--shadow-lg)'
             }}>
+                {/* Search Members */}
                 <div className="form-group" style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>Select City</label>
-                    <div className="select-wrapper" style={{ position: 'relative' }}>
-                        <select
-                            value={selectedCity}
-                            onChange={(e) => {
-                                setSelectedCity(e.target.value);
-                                setSelectedChapter('');
-                                setSelectedMemberId('');
-                            }}
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
+                        Search Members
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                            type="text"
+                            placeholder="Search by name..."
+                            value={memberSearch}
+                            onChange={(e) => setMemberSearch(e.target.value)}
                             style={{
                                 width: '100%',
-                                padding: '12px 16px',
+                                padding: '12px 16px 12px 40px',
                                 background: 'rgba(0, 0, 0, 0.2)',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 borderRadius: 'var(--radius-md)',
                                 color: 'white',
                                 fontSize: '15px',
-                                appearance: 'none',
-                                cursor: 'pointer'
+                                boxSizing: 'border-box'
                             }}
-                        >
-                            <option value="">Select a city...</option>
-                            {cities.map(city => (
-                                <option key={city} value={city}>{city}</option>
-                            ))}
-                        </select>
-                        <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }} />
+                        />
+                        {isFetchingMembers && (
+                            <Loader2 size={16} className="spin" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-primary)' }} />
+                        )}
                     </div>
                 </div>
 
-                {viewType === 'chapter' && (
-                    <div className="form-group" style={{ marginBottom: '24px', opacity: selectedCity ? 1 : 0.5, pointerEvents: selectedCity ? 'auto' : 'none', transition: 'all 0.3s' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>Select Chapter</label>
-                        <div className="select-wrapper" style={{ position: 'relative' }}>
-                            <select
-                                value={selectedChapter}
-                                onChange={(e) => {
-                                    setSelectedChapter(e.target.value);
-                                    setSelectedMemberId('');
-                                }}
-                                disabled={!selectedCity}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 16px',
-                                    background: 'rgba(0, 0, 0, 0.2)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: 'var(--radius-md)',
-                                    color: 'white',
-                                    fontSize: '15px',
-                                    appearance: 'none',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                <option value="">Select a chapter...</option>
-                                {chapters.map(chapter => (
-                                    <option key={chapter} value={chapter}>{chapter}</option>
-                                ))}
-                            </select>
-                            <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }} />
-                        </div>
+                {/* Members List */}
+                <div className="form-group" style={{ marginBottom: '32px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>
+                        Select Member ({membersForAssignment.length} available)
+                    </label>
+                    <div style={{
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                    }}>
+                        {membersForAssignment.length > 0 ? (
+                            membersForAssignment.map(member => {
+                                const isSelected = selectedMemberId === member.id || selectedMemberId === member.id?.toString();
+                                return (
+                                    <div
+                                        key={member.id}
+                                        onClick={() => setSelectedMemberId(member.id)}
+                                        style={{
+                                            padding: '14px 18px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            cursor: 'pointer',
+                                            background: isSelected ? 'rgba(108, 92, 231, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                                            transition: 'background 0.2s',
+                                            borderLeft: isSelected ? '3px solid var(--accent-primary)' : '3px solid transparent'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div className="user-avatar" style={{
+                                                width: '36px', height: '36px', fontSize: '14px',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                borderRadius: '50%', background: isSelected ? 'var(--accent-gradient)' : 'rgba(255,255,255,0.1)',
+                                                color: 'white', fontWeight: '600'
+                                            }}>
+                                                {(member.name || '?').charAt(0)}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '14px' }}>
+                                                    {member.name || 'N/A'}
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                    {member.cityName || member.city || ''}{member.chapterName || member.chapter ? ` • ${member.chapterName || member.chapter}` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                            #{member.id}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                {isFetchingMembers ? (
+                                    <>
+                                        <Loader2 size={20} className="spin" style={{ marginBottom: '8px' }} />
+                                        <p>Loading members...</p>
+                                    </>
+                                ) : (
+                                    <p>No members found{memberSearch ? ` matching "${memberSearch}"` : ''}.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Selected Member Preview */}
+                {selectedMember && (
+                    <div style={{
+                        padding: '16px 20px',
+                        background: 'rgba(108, 92, 231, 0.08)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid rgba(108, 92, 231, 0.2)',
+                        marginBottom: '24px'
+                    }}>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>Selected:</p>
+                        <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
+                            {selectedMember.name} <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>#{selectedMember.id}</span>
+                        </p>
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                            {selectedMember.cityName || selectedMember.city || 'N/A'}
+                            {selectedMember.chapterName || selectedMember.chapter ? ` • ${selectedMember.chapterName || selectedMember.chapter}` : ''}
+                        </p>
                     </div>
                 )}
 
-                <div className="form-group" style={{ marginBottom: '32px', opacity: (selectedCity && (viewType === 'city' || selectedChapter)) ? 1 : 0.5, pointerEvents: (selectedCity && (viewType === 'city' || selectedChapter)) ? 'auto' : 'none', transition: 'all 0.3s' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500' }}>Select Member</label>
-                    <div className="select-wrapper" style={{ position: 'relative' }}>
-                        <select
-                            value={selectedMemberId}
-                            onChange={(e) => setSelectedMemberId(e.target.value)}
-                            disabled={!selectedCity || (viewType === 'chapter' && !selectedChapter)}
-                            style={{
-                                width: '100%',
-                                padding: '12px 16px',
-                                background: 'rgba(0, 0, 0, 0.2)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: 'var(--radius-md)',
-                                color: 'white',
-                                fontSize: '15px',
-                                appearance: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="">Select a member to promote...</option>
-                            {availableMembers.map(member => (
-                                <option key={member.id} value={member.id}>{member.name} (#{member.id})</option>
-                            ))}
-                        </select>
-                        <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }} />
-                    </div>
-                </div>
-
+                {/* Assign Button */}
                 <button
                     onClick={handleAssign}
                     disabled={!selectedMemberId || isLoading}
@@ -239,11 +254,14 @@ export default function AdminForm({ mode = 'create', adminId, onNavigate, viewTy
                     }}
                 >
                     {isLoading ? (
-                        'Assigning...'
+                        <>
+                            <Loader2 size={18} className="spin" />
+                            Assigning...
+                        </>
                     ) : (
                         <>
                             <UserPlus size={18} />
-                            Assign {viewType === 'city' ? 'City' : 'Chapter'} Admin
+                            Assign as {viewType === 'city' ? 'City' : 'Chapter'} Admin
                         </>
                     )}
                 </button>
