@@ -187,43 +187,43 @@ function extractArrayData(data) {
     return data;
 }
 
-// GET City Admins - GET /admins?role=City_Admin
+// GET City Admins - GET /admin/admins?role=City_Admin
 export async function getCityAdmins(search = '') {
-    let endpoint = '/admins?role=City_Admin';
+    let endpoint = '/admin/admins?role=City_Admin';
     if (search) endpoint += `&search=${encodeURIComponent(search)}`;
     const data = await authApiRequest(endpoint);
     return extractArrayData(data);
 }
 
-// GET Chapter Admins - GET /admins?role=Chapter_Admin
+// GET Chapter Admins - GET /admin/admins?role=Chapter_Admin
 export async function getChapterAdmins(search = '') {
-    let endpoint = '/admins?role=Chapter_Admin';
+    let endpoint = '/admin/admins?role=Chapter_Admin';
     if (search) endpoint += `&search=${encodeURIComponent(search)}`;
     const data = await authApiRequest(endpoint);
     return extractArrayData(data);
 }
 
-// DELETE Admin - DELETE /admins/:id (removes admin, back to Member)
+// DELETE Admin - DELETE /admin/admins/:id (removes admin, back to Member)
 export async function removeAdmin(adminId) {
     console.log('[dataService] removeAdmin called for ID:', adminId);
-    const data = await authApiRequest(`/admins/${adminId}`, { method: 'DELETE' });
+    const data = await authApiRequest(`/admin/admins/${adminId}`, { method: 'DELETE' });
     return data;
 }
 
-// GET Members for assignment - GET /users?membersOnly=true
+// GET Members for assignment - GET /admin/users?membersOnly=true
 export async function getMembersForAssignment(search = '') {
-    let endpoint = '/users?membersOnly=true';
+    let endpoint = '/admin/users?membersOnly=true';
     if (search) endpoint += `&search=${encodeURIComponent(search)}`;
     const data = await authApiRequest(endpoint);
     return extractArrayData(data);
 }
 
-// POST Assign Admin - POST /assign-admin
+// POST Assign Admin - POST /admin/assign-admin
 export async function assignAdmin(userId, role, cityId, chapterId = null) {
     console.log('[dataService] assignAdmin called:', { userId, role, cityId, chapterId });
     const body = { userId, role, cityId };
     if (chapterId) body.chapterId = chapterId;
-    const data = await authApiRequest('/assign-admin', {
+    const data = await authApiRequest('/admin/assign-admin', {
         method: 'POST',
         body: JSON.stringify(body),
     });
@@ -341,6 +341,60 @@ export async function approvePendingRequest(requestId) {
         return data;
     } catch (error) {
         console.error('[dataService] Error approving request:', error);
+        throw error;
+    }
+}
+
+// ==========================================
+// Chapter Management - Connected to backend
+// ==========================================
+
+// GET Pending Chapters - GET /chapters/pending?status=Pending
+export async function getPendingChapters() {
+    console.log('[dataService] getPendingChapters called');
+    try {
+        const data = await authApiRequest('/chapters/pending?status=Pending');
+        console.log('[dataService] Pending chapters response:', data);
+
+        // Handle various response structures
+        if (data.data && data.data.chapters) return data.data.chapters;
+        if (data.data && Array.isArray(data.data)) return data.data;
+        if (data.chapters) return data.chapters;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching pending chapters:', error);
+        throw error;
+    }
+}
+
+// POST Approve Chapter - POST /chapters/:id/approve
+export async function approveChapter(chapterId) {
+    console.log('[dataService] approveChapter called for ID:', chapterId);
+    try {
+        const data = await authApiRequest(`/chapters/${chapterId}/approve`, {
+            method: 'POST',
+        });
+        console.log('[dataService] Approve chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error approving chapter:', error);
+        throw error;
+    }
+}
+
+// POST Reject Chapter - POST /chapters/:id/reject
+export async function rejectChapter(chapterId, reason) {
+    console.log('[dataService] rejectChapter called for ID:', chapterId, 'reason:', reason);
+    try {
+        const data = await authApiRequest(`/chapters/${chapterId}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+        console.log('[dataService] Reject chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error rejecting chapter:', error);
         throw error;
     }
 }

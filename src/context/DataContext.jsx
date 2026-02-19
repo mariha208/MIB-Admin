@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import {
     getPendingRequests, approvePendingRequest, denyPendingRequest, signIn,
-    getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin
+    getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin,
+    getPendingChapters, approveChapter, rejectChapter
 } from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
@@ -86,6 +87,10 @@ export function DataProvider({ children }) {
     const [chapterAdmins, setChapterAdmins] = useState([]);
     const [adminsLoading, setAdminsLoading] = useState(false);
     const [membersForAssignment, setMembersForAssignment] = useState([]);
+
+    // Chapter requests state
+    const [pendingChapters, setPendingChapters] = useState([]);
+    const [chaptersLoading, setChaptersLoading] = useState(false);
 
     // Simulated API fetch - replace with real API calls
     const fetchData = async () => {
@@ -346,6 +351,57 @@ export function DataProvider({ children }) {
         }
     };
 
+    // ==========================================
+    // Chapter Request Management Functions
+    // ==========================================
+
+    const fetchPendingChapterRequests = async () => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping chapter requests fetch');
+            return;
+        }
+        setChaptersLoading(true);
+        try {
+            const chapters = await getPendingChapters();
+            console.log('[DataContext] Fetched pending chapters:', chapters);
+            setPendingChapters(Array.isArray(chapters) ? chapters : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch pending chapters:', err);
+            setError(err.message);
+            setPendingChapters([]);
+        } finally {
+            setChaptersLoading(false);
+        }
+    };
+
+    const approveChapterRequest = async (chapterId) => {
+        try {
+            console.log('[DataContext] Approving chapter:', chapterId);
+            const result = await approveChapter(chapterId);
+            console.log('[DataContext] Approve chapter result:', result);
+            // Remove from pending list
+            setPendingChapters(prev => prev.filter(ch => ch._id !== chapterId && ch.id !== chapterId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to approve chapter:', err);
+            throw err;
+        }
+    };
+
+    const rejectChapterRequest = async (chapterId, reason) => {
+        try {
+            console.log('[DataContext] Rejecting chapter:', chapterId, 'reason:', reason);
+            const result = await rejectChapter(chapterId, reason);
+            console.log('[DataContext] Reject chapter result:', result);
+            // Remove from pending list
+            setPendingChapters(prev => prev.filter(ch => ch._id !== chapterId && ch.id !== chapterId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to reject chapter:', err);
+            throw err;
+        }
+    };
 
 
     // Authentication State
@@ -417,6 +473,8 @@ export function DataProvider({ children }) {
                 // Fetch pending requests after successful login - pass token directly!
                 console.log('[DataContext] Fetching pending requests with token directly...');
                 await fetchPendingRequests(token);
+                // Also fetch pending chapter requests
+                await fetchPendingChapterRequests();
             } else {
                 console.warn('[DataContext] WARNING: No token found in login response! Pending requests will not work.');
             }
@@ -446,6 +504,7 @@ export function DataProvider({ children }) {
         if (token) {
             console.log('[DataContext] User has token, fetching pending requests on mount...');
             fetchPendingRequests();
+            fetchPendingChapterRequests();
         } else {
             console.log('[DataContext] No token found, skipping pending requests fetch');
         }
@@ -481,6 +540,12 @@ export function DataProvider({ children }) {
             removeAdminById,
             fetchMembersForAssignment,
             assignNewAdmin,
+            // Chapter request management
+            pendingChapters,
+            chaptersLoading,
+            fetchPendingChapterRequests,
+            approveChapterRequest,
+            rejectChapterRequest,
         }}>
             {children}
         </DataContext.Provider>

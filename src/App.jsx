@@ -17,7 +17,7 @@ import './index.css';
 import { formatIndianCurrency } from './utils/formatters';
 
 function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
-  const { data, loading } = useData();
+  const { data, loading, pendingChapters } = useData();
 
   if (loading) {
     return (
@@ -58,7 +58,16 @@ function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
             onClick={() => onNavigate('notifications')}
           >
             <Bell size={20} />
-            <span className="notification-badge"></span>
+            {pendingChapters.length > 0 && (
+              <span className="notification-badge" style={{
+                width: 'auto', minWidth: '16px', height: '16px',
+                fontSize: '10px', fontWeight: '700', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 4px', top: '6px', right: '6px',
+              }}>
+                {pendingChapters.length}
+              </span>
+            )}
           </button>
         </div>
       </header>
