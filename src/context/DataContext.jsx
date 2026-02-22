@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import {
     getPendingRequests, approvePendingRequest, denyPendingRequest, signIn,
     getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin,
-    getPendingChapters, approveChapter, rejectChapter
+    getPendingChapters, approveChapter, rejectChapter,
+    getEventReports, getReportById, deleteEventReport
 } from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
@@ -90,6 +91,11 @@ export function DataProvider({ children }) {
 
     // Chapter requests state
     const [pendingChapters, setPendingChapters] = useState([]);
+
+    // Reports state
+    const [reports, setReports] = useState([]);
+    const [selectedReport, setSelectedReport] = useState(null);
+    const [reportsLoading, setReportsLoading] = useState(false);
     const [chaptersLoading, setChaptersLoading] = useState(false);
 
     // Simulated API fetch - replace with real API calls
@@ -403,6 +409,60 @@ export function DataProvider({ children }) {
         }
     };
 
+    // ==========================================
+    // Reports Management Functions
+    // ==========================================
+
+    const fetchReports = async (cityFilter = null) => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping reports fetch');
+            return;
+        }
+        setReportsLoading(true);
+        try {
+            const data = await getEventReports(cityFilter);
+            console.log('[DataContext] Fetched reports:', data);
+            setReports(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch reports:', err);
+            setError(err.message);
+            setReports([]);
+        } finally {
+            setReportsLoading(false);
+        }
+    };
+
+    const fetchReportById = async (reportId) => {
+        try {
+            console.log('[DataContext] Fetching report:', reportId);
+            const data = await getReportById(reportId);
+            console.log('[DataContext] Fetched report detail:', data);
+            setSelectedReport(data);
+            return data;
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch report:', err);
+            throw err;
+        }
+    };
+
+    const deleteReport = async (reportId) => {
+        try {
+            console.log('[DataContext] Deleting report:', reportId);
+            await deleteEventReport(reportId);
+            // Remove from local state
+            setReports(prev => prev.filter(r => (r._id || r.id) !== reportId));
+            // Clear selected if it was the deleted one
+            if (selectedReport && (selectedReport._id === reportId || selectedReport.id === reportId)) {
+                setSelectedReport(null);
+            }
+            console.log('[DataContext] Report deleted successfully');
+            return { success: true };
+        } catch (err) {
+            console.error('[DataContext] Failed to delete report:', err);
+            throw err;
+        }
+    };
 
     // Authentication State
     const [user, setUser] = useState(() => {
@@ -546,6 +606,13 @@ export function DataProvider({ children }) {
             fetchPendingChapterRequests,
             approveChapterRequest,
             rejectChapterRequest,
+            // Reports management
+            reports,
+            selectedReport,
+            reportsLoading,
+            fetchReports,
+            fetchReportById,
+            deleteReport,
         }}>
             {children}
         </DataContext.Provider>

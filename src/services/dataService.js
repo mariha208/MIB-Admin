@@ -357,8 +357,11 @@ export async function getPendingChapters() {
         console.log('[dataService] Pending chapters response:', data);
 
         // Handle various response structures
+        // Backend returns: { success: true, data: { requests: [...], count: N } }
+        if (data.data && data.data.requests) return data.data.requests;
         if (data.data && data.data.chapters) return data.data.chapters;
         if (data.data && Array.isArray(data.data)) return data.data;
+        if (data.requests) return data.requests;
         if (data.chapters) return data.chapters;
         if (Array.isArray(data)) return data;
         return data;
@@ -435,3 +438,39 @@ export async function denyPendingRequest(requestId) {
     }
 }
 
+// ==========================================
+// Reports Management - Connected to backend
+// ==========================================
+
+// GET All Reports (Super Admin) - GET /reports?city=
+export async function getEventReports(cityFilter = null) {
+    console.log('[dataService] getEventReports called, cityFilter:', cityFilter);
+    let endpoint = '/reports';
+    if (cityFilter) {
+        endpoint += `?city=${encodeURIComponent(cityFilter)}`;
+    }
+    const data = await authApiRequest(endpoint);
+    console.log('[dataService] Event reports response:', data);
+    // Handle various response shapes
+    if (data.data?.reports) return data.data.reports;
+    if (data.reports) return data.reports;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return data;
+}
+
+// GET Single Report (Super Admin) - GET /reports/:id
+export async function getReportById(reportId) {
+    console.log('[dataService] getReportById called for ID:', reportId);
+    const data = await authApiRequest(`/reports/${reportId}`);
+    console.log('[dataService] Single report response:', data);
+    return data.data?.report || data.report || data.data || data;
+}
+
+// DELETE Report (Super Admin) - DELETE /reports/:id
+export async function deleteEventReport(reportId) {
+    console.log('[dataService] deleteEventReport called for ID:', reportId);
+    const data = await authApiRequest(`/reports/${reportId}`, { method: 'DELETE' });
+    console.log('[dataService] Delete report response:', data);
+    return data;
+}

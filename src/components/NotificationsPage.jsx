@@ -136,9 +136,9 @@ export default function NotificationsPage({ onNavigate }) {
                     const chapterId = chapter._id || chapter.id;
                     const isActing = actionLoading === chapterId;
                     const chapterName = chapter.name || chapter.chapterName || 'Unnamed Chapter';
-                    const adminName = chapter.adminName || chapter.admin?.name || chapter.createdBy?.name || 'Unknown Admin';
-                    const adminEmail = chapter.adminEmail || chapter.admin?.email || chapter.createdBy?.email || '';
-                    const cityName = chapter.city || chapter.cityName || 'N/A';
+                    const adminName = chapter.requestedByName || chapter.adminName || chapter.admin?.name || chapter.createdBy?.name || 'Unknown Admin';
+                    const adminEmail = chapter.requestedByEmail || chapter.adminEmail || chapter.admin?.email || chapter.createdBy?.email || '';
+                    const cityName = chapter.cityName || chapter.city || 'N/A';
                     const createdAt = chapter.createdAt || chapter.requestDate;
 
                     return (

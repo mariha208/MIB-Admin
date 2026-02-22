@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText } from 'lucide-react';
 import ControlFormModal from './ControlFormModal';
+import { getEventReports, deleteEventReport } from '../services/dataService';
 
 const MOCK_HISTORY = [
     { id: 2, type: 'City', giver: 'Admin', givenTo: 'Mumbai Lead', date: '19-Jan-2026', level: 'Mumbai', password: 'Mum#Lead$25' },
@@ -12,6 +13,7 @@ const CONTROL_OPTIONS = [
     { id: 'event', label: 'Event Reports', icon: BarChart3 },
     { id: 'weekly', label: 'Weekly Reports', icon: Calendar },
     { id: 'upload', label: 'Upload Events', icon: Upload },
+    { id: 'submitted', label: 'Submitted Reports', icon: FileText },
 ];
 
 const CITIES = [
@@ -81,6 +83,39 @@ export default function ControlsPage() {
     const [selectedCityForWeeklyReport, setSelectedCityForWeeklyReport] = useState(null);
     const [selectedCityForUpload, setSelectedCityForUpload] = useState(null);
     const [eventPhoto, setEventPhoto] = useState(null);
+
+    // Submitted reports state (from API)
+    const [submittedReports, setSubmittedReports] = useState([]);
+    const [reportsLoading, setReportsLoading] = useState(false);
+    const [reportsError, setReportsError] = useState(null);
+
+    // Fetch reports when 'submitted' or 'event' view is opened
+    useEffect(() => {
+        if (view === 'submitted' || view === 'event') {
+            setReportsLoading(true);
+            setReportsError(null);
+            getEventReports()
+                .then((reports) => {
+                    setSubmittedReports(reports);
+                    setReportsLoading(false);
+                })
+                .catch((err) => {
+                    console.error('Failed to fetch reports:', err);
+                    setReportsError(err.message || 'Failed to load reports');
+                    setReportsLoading(false);
+                });
+        }
+    }, [view]);
+
+    const handleDeleteReport = async (reportId) => {
+        if (!window.confirm('Are you sure you want to delete this report?')) return;
+        try {
+            await deleteEventReport(reportId);
+            setSubmittedReports((prev) => prev.filter((r) => (r._id || r.id) !== reportId));
+        } catch (err) {
+            alert('Failed to delete report: ' + err.message);
+        }
+    };
 
     const availableCities = useMemo(() => {
         const cities = new Set();
@@ -185,7 +220,27 @@ export default function ControlsPage() {
 
         if (view === 'event') {
             if (selectedCity) {
-                const cityEvents = MOCK_EVENTS.filter(e => e.city === selectedCity);
+                const cityEvents = submittedReports.filter(e => 
+                    (e.cityName || e.city || '').toLowerCase() === selectedCity.toLowerCase()
+                );
+
+                if (reportsLoading) {
+                    return (
+                        <div className="users-page animate-fade-in">
+                            <div className="back-btn-container">
+                                <button className="back-btn" onClick={() => setSelectedCity(null)}>
+                                    <ArrowLeft size={18} />
+                                    Back to Cities
+                                </button>
+                            </div>
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTop: '3px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                                Loading reports...
+                            </div>
+                        </div>
+                    );
+                }
+
                 return (
                     <div className="users-page animate-fade-in">
                         <div className="back-btn-container">
@@ -210,29 +265,43 @@ export default function ControlsPage() {
                                         <th>ATTENDED</th>
                                         <th>VISITORS</th>
                                         <th>MEDIA</th>
+                                        <th>SUBMITTED BY</th>
+                                        <th>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {cityEvents.length > 0 ? (
                                         cityEvents.map((event) => (
-                                            <tr key={event.id}>
-                                                <td><span className="user-name">{event.name}</span></td>
-                                                <td>{event.date}</td>
-                                                <td>{event.place}</td>
-                                                <td style={{ textAlign: 'center' }}>{event.mibMembers}</td>
-                                                <td style={{ textAlign: 'center' }}>{event.attended}</td>
-                                                <td style={{ textAlign: 'center' }}>{event.visitors}</td>
+                                            <tr key={event._id || event.id}>
+                                                <td><span className="user-name">{event.eventName || event.name || '—'}</span></td>
+                                                <td>{event.eventDate || event.date || '—'}</td>
+                                                <td>{event.eventPlace || event.place || '—'}</td>
+                                                <td style={{ textAlign: 'center' }}>{event.totalMibMembers || event.mibMembers || 0}</td>
+                                                <td style={{ textAlign: 'center' }}>{event.totalMembersAttended || event.attended || 0}</td>
+                                                <td style={{ textAlign: 'center' }}>{event.totalVisitors || event.visitors || 0}</td>
                                                 <td>
                                                     <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                        <span>{event.photos} 📷</span>
-                                                        <span>{event.videos} 🎥</span>
+                                                        <span>{event.photoCount || event.photos || 0} 📷</span>
+                                                        <span>{event.videoCount || event.videos || 0} 🎥</span>
                                                     </div>
+                                                </td>
+                                                <td>
+                                                    <span style={{ fontSize: '13px' }}>{event.submittedByName || '—'}</span>
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        className="icon-btn delete"
+                                                        title="Delete Report"
+                                                        onClick={() => handleDeleteReport(event._id || event.id)}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                                                 No events found for {selectedCity}
                                             </td>
                                         </tr>
@@ -244,6 +313,59 @@ export default function ControlsPage() {
                 );
             }
 
+            // Loading state for city list
+            if (reportsLoading) {
+                return (
+                    <div className="users-page animate-fade-in">
+                        <div className="back-btn-container">
+                            <button className="back-btn" onClick={() => setView('list')}>
+                                <ArrowLeft size={18} />
+                                Back to Control History
+                            </button>
+                        </div>
+                        <h2 className="section-title text-white" style={{ marginBottom: '2rem' }}>Event Reports</h2>
+                        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                            <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTop: '3px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                            Loading reports...
+                        </div>
+                    </div>
+                );
+            }
+
+            if (reportsError) {
+                return (
+                    <div className="users-page animate-fade-in">
+                        <div className="back-btn-container">
+                            <button className="back-btn" onClick={() => setView('list')}>
+                                <ArrowLeft size={18} />
+                                Back to Control History
+                            </button>
+                        </div>
+                        <h2 className="section-title text-white" style={{ marginBottom: '2rem' }}>Event Reports</h2>
+                        <div style={{ textAlign: 'center', padding: '3rem', color: '#f87171' }}>
+                            <p>❌ {reportsError}</p>
+                            <button className="back-btn" style={{ margin: '1rem auto', display: 'inline-flex' }} onClick={() => { setReportsError(null); setView('event'); }}>
+                                Retry
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Build city list dynamically from API reports + static CITIES
+            const apiCities = new Set();
+            submittedReports.forEach(r => {
+                const city = r.cityName || r.city;
+                if (city) apiCities.add(city);
+            });
+            // Merge: show CITIES + any extra cities from API data
+            const allCities = [...CITIES];
+            apiCities.forEach(cityName => {
+                if (!allCities.find(c => c.name.toLowerCase() === cityName.toLowerCase())) {
+                    allCities.push({ name: cityName, gradient: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' });
+                }
+            });
+
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
@@ -253,7 +375,10 @@ export default function ControlsPage() {
                         </button>
                     </div>
 
-                    <h2 className="section-title text-white" style={{ marginBottom: '2rem' }}>Event Reports</h2>
+                    <h2 className="section-title text-white" style={{ marginBottom: '0.5rem' }}>Event Reports</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '2rem' }}>
+                        {submittedReports.length} report{submittedReports.length !== 1 ? 's' : ''} submitted. Select a city to view details.
+                    </p>
 
                     <div className="city-grid" style={{
                         display: 'grid',
@@ -261,34 +386,50 @@ export default function ControlsPage() {
                         gap: '1.5rem',
                         padding: '1rem'
                     }}>
-                        {CITIES.map((city) => (
-                            <div
-                                key={city.name}
-                                className="city-card hover-scale"
-                                onClick={() => setSelectedCity(city.name)}
-                                style={{
-                                    background: city.gradient,
-                                    borderRadius: '16px',
-                                    padding: '2rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                                    minHeight: '120px'
-                                }}
-                            >
-                                <h3 style={{
-                                    color: 'white',
-                                    fontSize: '1.5rem',
-                                    fontWeight: '600',
-                                    textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                    margin: 0
-                                }}>
-                                    {city.name}
-                                </h3>
-                            </div>
-                        ))}
+                        {allCities.map((city) => {
+                            const count = submittedReports.filter(r => 
+                                (r.cityName || r.city || '').toLowerCase() === city.name.toLowerCase()
+                            ).length;
+                            return (
+                                <div
+                                    key={city.name}
+                                    className="city-card hover-scale"
+                                    onClick={() => setSelectedCity(city.name)}
+                                    style={{
+                                        background: city.gradient,
+                                        borderRadius: '16px',
+                                        padding: '2rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                                        minHeight: '120px'
+                                    }}
+                                >
+                                    <h3 style={{
+                                        color: 'white',
+                                        fontSize: '1.5rem',
+                                        fontWeight: '600',
+                                        textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                        margin: 0
+                                    }}>
+                                        {city.name}
+                                    </h3>
+                                    <span style={{
+                                        color: 'rgba(255,255,255,0.85)',
+                                        fontSize: '0.85rem',
+                                        marginTop: '0.5rem',
+                                        background: 'rgba(0,0,0,0.2)',
+                                        padding: '2px 10px',
+                                        borderRadius: '12px'
+                                    }}>
+                                        {count} report{count !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             );
@@ -857,6 +998,110 @@ export default function ControlsPage() {
                             </div>
                         ))}
                     </div>
+                </div>
+            );
+        }
+
+        if (view === 'submitted') {
+            return (
+                <div className="users-page animate-fade-in">
+                    <div className="back-btn-container">
+                        <button className="back-btn" onClick={() => setView('list')}>
+                            <ArrowLeft size={18} />
+                            Back to Control Panel
+                        </button>
+                    </div>
+
+                    <div className="table-controls">
+                        <h2 className="section-title text-white">Submitted Event Reports</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.25rem 0 0' }}>
+                            Reports submitted by City Admins from the mobile app.
+                        </p>
+                    </div>
+
+                    {reportsLoading ? (
+                        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                            <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTop: '3px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                            Loading reports...
+                        </div>
+                    ) : reportsError ? (
+                        <div style={{ textAlign: 'center', padding: '3rem', color: '#f87171' }}>
+                            <p>❌ {reportsError}</p>
+                            <button className="back-btn" style={{ margin: '1rem auto', display: 'inline-flex' }} onClick={() => setView('submitted')}>
+                                Retry
+                            </button>
+                        </div>
+                    ) : submittedReports.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                            <FileText size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                            <p>No event reports submitted yet.</p>
+                        </div>
+                    ) : (
+                        <div className="table-container shadow-lg">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>CITY</th>
+                                        <th>EVENT NAME</th>
+                                        <th>DATE</th>
+                                        <th>PLACE</th>
+                                        <th style={{ textAlign: 'center' }}>MIB MEMBERS</th>
+                                        <th style={{ textAlign: 'center' }}>ATTENDED</th>
+                                        <th style={{ textAlign: 'center' }}>VISITORS</th>
+                                        <th>MEDIA</th>
+                                        <th>SUBMITTED BY</th>
+                                        <th>NOTE</th>
+                                        <th>ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {submittedReports.map((report) => (
+                                        <tr key={report._id || report.id}>
+                                            <td>
+                                                <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
+                                                    {report.cityName || '—'}
+                                                </span>
+                                            </td>
+                                            <td><span className="user-name">{report.eventName}</span></td>
+                                            <td>{report.eventDate}</td>
+                                            <td>{report.eventPlace}</td>
+                                            <td style={{ textAlign: 'center' }}>{report.totalMibMembers}</td>
+                                            <td style={{ textAlign: 'center' }}>{report.totalMembersAttended}</td>
+                                            <td style={{ textAlign: 'center' }}>{report.totalVisitors}</td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                    <span>{report.photoCount || 0} 📷</span>
+                                                    <span>{report.videoCount || 0} 🎥</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ fontSize: '13px' }}>{report.submittedByName || '—'}</span>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{report.submittedByEmail || ''}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '150px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                                    title={report.note || ''}
+                                                >
+                                                    {report.note || '—'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button
+                                                    className="icon-btn delete"
+                                                    title="Delete Report"
+                                                    onClick={() => handleDeleteReport(report._id || report.id)}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             );
         }
