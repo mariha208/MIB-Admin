@@ -474,3 +474,28 @@ export async function deleteEventReport(reportId) {
     console.log('[dataService] Delete report response:', data);
     return data;
 }
+
+// ==========================================
+// Uploaded Events Management - Connected to backend
+// ==========================================
+
+// GET All Uploaded Events - GET /events
+export async function getUploadedEvents() {
+    console.log('[dataService] getUploadedEvents called');
+    const data = await authApiRequest('/events');
+    console.log('[dataService] Uploaded events response:', data);
+    // Handle various response shapes
+    if (data.data?.events) return data.data.events;
+    if (data.events) return data.events;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return data;
+}
+
+// DELETE Uploaded Event - DELETE /events/:id
+export async function deleteUploadedEvent(eventId) {
+    console.log('[dataService] deleteUploadedEvent called for ID:', eventId);
+    const data = await authApiRequest(`/events/${eventId}`, { method: 'DELETE' });
+    console.log('[dataService] Delete event response:', data);
+    return data;
+}

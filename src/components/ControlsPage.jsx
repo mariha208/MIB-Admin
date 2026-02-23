@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText, CalendarCheck } from 'lucide-react';
 import ControlFormModal from './ControlFormModal';
-import { getEventReports, deleteEventReport } from '../services/dataService';
+import { getEventReports, deleteEventReport, getUploadedEvents, deleteUploadedEvent } from '../services/dataService';
 
 const MOCK_HISTORY = [
     { id: 2, type: 'City', giver: 'Admin', givenTo: 'Mumbai Lead', date: '19-Jan-2026', level: 'Mumbai', password: 'Mum#Lead$25' },
@@ -10,6 +10,7 @@ const MOCK_HISTORY = [
 
 const CONTROL_OPTIONS = [
     { id: 'password', label: 'Password Control', icon: Key },
+    { id: 'events', label: 'Event', icon: CalendarCheck },
     { id: 'event', label: 'Event Reports', icon: BarChart3 },
     { id: 'weekly', label: 'Weekly Reports', icon: Calendar },
     { id: 'upload', label: 'Upload Events', icon: Upload },
@@ -89,6 +90,11 @@ export default function ControlsPage() {
     const [reportsLoading, setReportsLoading] = useState(false);
     const [reportsError, setReportsError] = useState(null);
 
+    // Uploaded events state (from API)
+    const [uploadedEvents, setUploadedEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+    const [eventsError, setEventsError] = useState(null);
+
     // Fetch reports when 'submitted' or 'event' view is opened
     useEffect(() => {
         if (view === 'submitted' || view === 'event') {
@@ -107,6 +113,24 @@ export default function ControlsPage() {
         }
     }, [view]);
 
+    // Fetch uploaded events when 'events' view is opened
+    useEffect(() => {
+        if (view === 'events') {
+            setEventsLoading(true);
+            setEventsError(null);
+            getUploadedEvents()
+                .then((events) => {
+                    setUploadedEvents(Array.isArray(events) ? events : []);
+                    setEventsLoading(false);
+                })
+                .catch((err) => {
+                    console.error('Failed to fetch uploaded events:', err);
+                    setEventsError(err.message || 'Failed to load events');
+                    setEventsLoading(false);
+                });
+        }
+    }, [view]);
+
     const handleDeleteReport = async (reportId) => {
         if (!window.confirm('Are you sure you want to delete this report?')) return;
         try {
@@ -114,6 +138,16 @@ export default function ControlsPage() {
             setSubmittedReports((prev) => prev.filter((r) => (r._id || r.id) !== reportId));
         } catch (err) {
             alert('Failed to delete report: ' + err.message);
+        }
+    };
+
+    const handleDeleteEvent = async (eventId) => {
+        if (!window.confirm('Are you sure you want to delete this event?')) return;
+        try {
+            await deleteUploadedEvent(eventId);
+            setUploadedEvents((prev) => prev.filter((e) => (e._id || e.id) !== eventId));
+        } catch (err) {
+            alert('Failed to delete event: ' + err.message);
         }
     };
 
@@ -162,6 +196,588 @@ export default function ControlsPage() {
     );
 
     const renderDetailView = () => {
+        // ========== Event (Uploaded Events) View ==========
+        if (view === 'events') {
+            // Gradient palette for event cards
+            const EVENT_GRADIENTS = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+                'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)',
+                'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+                'linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%)',
+                'linear-gradient(135deg, #0acffe 0%, #495aff 100%)',
+            ];
+
+            return (
+                <div className="users-page animate-fade-in">
+                    <div className="back-btn-container">
+                        <button className="back-btn" onClick={() => setView('list')}>
+                            <ArrowLeft size={18} />
+                            Back to Control Panel
+                        </button>
+                    </div>
+
+                    {/* Premium Header */}
+                    <div style={{
+                        textAlign: 'center',
+                        marginBottom: '2.5rem',
+                        position: 'relative'
+                    }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '64px',
+                            height: '64px',
+                            background: 'var(--accent-gradient)',
+                            borderRadius: '16px',
+                            marginBottom: '1rem',
+                            boxShadow: '0 8px 32px rgba(180, 145, 100, 0.3)',
+                        }}>
+                            <CalendarCheck size={32} color="white" />
+                        </div>
+                        <h2 style={{
+                            fontSize: '2rem',
+                            fontWeight: '700',
+                            color: 'var(--text-primary)',
+                            marginBottom: '0.5rem'
+                        }}>
+                            Uploaded Events
+                        </h2>
+                        <p style={{
+                            color: 'var(--text-muted)',
+                            fontSize: '0.95rem',
+                            maxWidth: '500px',
+                            margin: '0 auto'
+                        }}>
+                            {uploadedEvents.length > 0
+                                ? `${uploadedEvents.length} event${uploadedEvents.length !== 1 ? 's' : ''} uploaded across all cities`
+                                : 'All events that have been uploaded across cities'}
+                        </p>
+                    </div>
+
+                    {eventsLoading ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '4rem 2rem',
+                            color: 'var(--text-secondary)'
+                        }}>
+                            <div style={{
+                                width: '56px',
+                                height: '56px',
+                                border: '3px solid var(--border-color)',
+                                borderTop: '3px solid var(--accent-primary)',
+                                borderRadius: '50%',
+                                animation: 'spin 0.8s linear infinite',
+                                margin: '0 auto 1.5rem'
+                            }} />
+                            <p style={{ fontSize: '1.1rem', fontWeight: '500' }}>Loading events...</p>
+                        </div>
+                    ) : eventsError ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '4rem 2rem',
+                            background: 'rgba(248, 113, 113, 0.05)',
+                            borderRadius: '20px',
+                            border: '1px dashed rgba(248, 113, 113, 0.3)'
+                        }}>
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                background: 'rgba(248, 113, 113, 0.1)',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 1rem',
+                                fontSize: '1.5rem'
+                            }}>❌</div>
+                            <p style={{ color: '#f87171', fontSize: '1rem', marginBottom: '1rem' }}>{eventsError}</p>
+                            <button
+                                className="primary-btn"
+                                style={{ padding: '0.75rem 2rem' }}
+                                onClick={() => { setEventsError(null); setView('events'); }}
+                            >
+                                Try Again
+                            </button>
+                        </div>
+                    ) : uploadedEvents.length === 0 ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '5rem 2rem',
+                            background: 'var(--bg-card)',
+                            borderRadius: '24px',
+                            border: '1px dashed var(--border-color)',
+                        }}>
+                            <CalendarCheck size={64} style={{ opacity: 0.15, marginBottom: '1.5rem', color: 'var(--accent-primary)' }} />
+                            <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1.3rem' }}>No Events Yet</h3>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Upload events from the "Upload Events" section to see them here.</p>
+                        </div>
+                    ) : (
+                        <div className="event-cards-grid" style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                            gap: '1.5rem',
+                            padding: '0.5rem'
+                        }}>
+                            {uploadedEvents.map((event, index) => {
+                                const gradient = EVENT_GRADIENTS[index % EVENT_GRADIENTS.length];
+                                const eventName = event.eventName || event.title || event.event_name || event.name || 'Untitled Event';
+                                const cityName = event.cityName || event.city || '—';
+                                const eventDate = event.eventDate || event.date || event.event_date || '—';
+                                const eventPlace = event.fullAddress || event.full_address || event.location || event.address || event.eventPlace || event.place || '';
+                                const eventTiming = event.timing || event.time || '';
+                                const eventNote = event.note || event.description || '';
+                                const eventPhoto = event.imageUri || event.image_uri || event.eventPhoto || event.event_photo || event.photoUrl || event.photo || event.image || '';
+                                const mapLink = event.mapLink || event.locationGmapLink || event.map_link || event.location_gmap_link || event.gmapLink || '';
+                                const regLink = event.registrationLink || event.registrationFormLink || event.registration_link || event.registration_form_link || event.formLink || '';
+
+                                return (
+                                    <div
+                                        key={event._id || event.id || index}
+                                        className="event-card-item"
+                                        style={{
+                                            background: 'var(--bg-card)',
+                                            borderRadius: '20px',
+                                            border: '1px solid var(--border-color)',
+                                            overflow: 'hidden',
+                                            transition: 'all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                                            cursor: 'default',
+                                            position: 'relative',
+                                            animation: `fadeInUp 0.5s ease ${index * 0.08}s both`
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-6px)';
+                                            e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(180, 145, 100, 0.1)';
+                                            e.currentTarget.style.borderColor = 'rgba(180, 145, 100, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                                        }}
+                                    >
+                                        {/* Card Header with Gradient */}
+                                        <div style={{
+                                            background: gradient,
+                                            padding: '1.5rem',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            minHeight: eventPhoto ? '180px' : '120px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'flex-end',
+                                        }}>
+                                            {/* Decorative circles */}
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '-20px',
+                                                right: '-20px',
+                                                width: '100px',
+                                                height: '100px',
+                                                background: 'rgba(255,255,255,0.1)',
+                                                borderRadius: '50%',
+                                            }} />
+                                            <div style={{
+                                                position: 'absolute',
+                                                bottom: '-30px',
+                                                left: '-15px',
+                                                width: '80px',
+                                                height: '80px',
+                                                background: 'rgba(255,255,255,0.08)',
+                                                borderRadius: '50%',
+                                            }} />
+
+                                            {/* Photo thumbnail overlay */}
+                                            {eventPhoto && (
+                                                <img
+                                                    src={eventPhoto}
+                                                    alt={eventName}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: 0,
+                                                        left: 0,
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                        opacity: 0.3,
+                                                    }}
+                                                />
+                                            )}
+
+                                            {/* City Badge */}
+                                            <span style={{
+                                                position: 'absolute',
+                                                top: '12px',
+                                                right: '12px',
+                                                background: 'rgba(0,0,0,0.35)',
+                                                backdropFilter: 'blur(10px)',
+                                                color: 'white',
+                                                padding: '5px 14px',
+                                                borderRadius: '20px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: '600',
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase',
+                                                zIndex: 2
+                                            }}>
+                                                📍 {cityName}
+                                            </span>
+
+                                            {/* Event index badge */}
+                                            <span style={{
+                                                position: 'absolute',
+                                                top: '12px',
+                                                left: '12px',
+                                                background: 'rgba(0,0,0,0.35)',
+                                                backdropFilter: 'blur(10px)',
+                                                color: 'white',
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '50%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '0.75rem',
+                                                fontWeight: '700',
+                                                zIndex: 2
+                                            }}>
+                                                {index + 1}
+                                            </span>
+
+                                            {/* Event Name */}
+                                            <h3 style={{
+                                                color: 'white',
+                                                fontSize: '1.4rem',
+                                                fontWeight: '700',
+                                                margin: 0,
+                                                textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                                lineHeight: '1.3',
+                                                position: 'relative',
+                                                zIndex: 2,
+                                            }}>
+                                                {eventName}
+                                            </h3>
+                                        </div>
+
+                                        {/* Card Body */}
+                                        <div style={{ padding: '1.25rem 1.5rem' }}>
+                                            {/* Detail Rows — ALL fields always visible */}
+                                            <div style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '0.85rem'
+                                            }}>
+                                                {/* 1. Event Name */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(180, 145, 100, 0.15)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <CalendarCheck size={16} color="#b49164" />
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Event Name</span>
+                                                        <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: '600' }}>{eventName}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* 2. Event Date */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(79, 172, 254, 0.12)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <Calendar size={16} color="#4facfe" />
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Event Date</span>
+                                                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>{eventDate}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* 3. Address */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(67, 233, 123, 0.12)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <span style={{ fontSize: '14px' }}>🏛️</span>
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Address</span>
+                                                        <p style={{ margin: 0, fontSize: '0.9rem', color: eventPlace ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: '500' }}>{eventPlace || '—'}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* 4. Location Link */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(0, 206, 201, 0.12)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <span style={{ fontSize: '14px' }}>📍</span>
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Location Link</span>
+                                                        {mapLink ? (
+                                                            <a
+                                                                href={mapLink}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    fontSize: '0.85rem',
+                                                                    color: '#00cec9',
+                                                                    textDecoration: 'none',
+                                                                    fontWeight: '500',
+                                                                    marginTop: '2px',
+                                                                    padding: '4px 10px',
+                                                                    background: 'rgba(0, 206, 201, 0.08)',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid rgba(0, 206, 201, 0.15)',
+                                                                    width: 'fit-content',
+                                                                    transition: 'all 0.2s ease',
+                                                                }}
+                                                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 206, 201, 0.18)'; }}
+                                                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 206, 201, 0.08)'; }}
+                                                            >
+                                                                🗺️ Open in Google Maps →
+                                                            </a>
+                                                        ) : (
+                                                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '500' }}>—</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* 5. Timing */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(250, 112, 154, 0.12)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <span style={{ fontSize: '14px' }}>⏰</span>
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Timing</span>
+                                                        <p style={{ margin: 0, fontSize: '0.9rem', color: eventTiming ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: '500' }}>{eventTiming || '—'}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* 6. Note */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'flex-start',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(161, 140, 209, 0.12)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <span style={{ fontSize: '14px' }}>📝</span>
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Note</span>
+                                                        <p style={{ margin: 0, fontSize: '0.85rem', color: eventNote ? 'var(--text-secondary)' : 'var(--text-muted)', lineHeight: '1.5' }}>{eventNote || '—'}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* 7. Registration Link */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                }}>
+                                                    <div style={{
+                                                        width: '36px',
+                                                        height: '36px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(108, 92, 231, 0.12)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        <FileText size={16} color="#6c5ce7" />
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Registration Link</span>
+                                                        {regLink ? (
+                                                            <a
+                                                                href={regLink}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    fontSize: '0.85rem',
+                                                                    color: '#6c5ce7',
+                                                                    textDecoration: 'none',
+                                                                    fontWeight: '500',
+                                                                    marginTop: '2px',
+                                                                    padding: '4px 10px',
+                                                                    background: 'rgba(108, 92, 231, 0.08)',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid rgba(108, 92, 231, 0.15)',
+                                                                    width: 'fit-content',
+                                                                    transition: 'all 0.2s ease',
+                                                                }}
+                                                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(108, 92, 231, 0.18)'; }}
+                                                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(108, 92, 231, 0.08)'; }}
+                                                            >
+                                                                📋 Open Registration Form →
+                                                            </a>
+                                                        ) : (
+                                                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '500' }}>—</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Card Footer - Photo & Delete */}
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                marginTop: '1.25rem',
+                                                paddingTop: '1rem',
+                                                borderTop: '1px solid var(--border-color)',
+                                            }}>
+                                                {/* Photo indicator */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    {eventPhoto ? (
+                                                        <div
+                                                            onClick={() => window.open(eventPhoto, '_blank')}
+                                                            style={{
+                                                                width: '44px',
+                                                                height: '44px',
+                                                                borderRadius: '10px',
+                                                                overflow: 'hidden',
+                                                                border: '2px solid var(--border-color)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s ease'
+                                                            }}
+                                                            title="Click to view full image"
+                                                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                                                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                                        >
+                                                            <img src={eventPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{
+                                                            width: '44px',
+                                                            height: '44px',
+                                                            borderRadius: '10px',
+                                                            background: 'rgba(255,255,255,0.03)',
+                                                            border: '1px dashed var(--border-color)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                        }}>
+                                                            <span style={{ fontSize: '16px', opacity: 0.4 }}>📷</span>
+                                                        </div>
+                                                    )}
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                        {eventPhoto ? 'View photo ↗' : 'No photo'}
+                                                    </span>
+                                                </div>
+
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => handleDeleteEvent(event._id || event.id)}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        padding: '8px 16px',
+                                                        borderRadius: '10px',
+                                                        background: 'rgba(248, 113, 113, 0.08)',
+                                                        color: '#f87171',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: '600',
+                                                        border: '1px solid rgba(248, 113, 113, 0.15)',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                    }}
+                                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.2)'; e.currentTarget.style.borderColor = 'rgba(248, 113, 113, 0.4)'; }}
+                                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.08)'; e.currentTarget.style.borderColor = 'rgba(248, 113, 113, 0.15)'; }}
+                                                >
+                                                    <Trash2 size={14} /> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
         if (view === 'password') {
             return (
                 <div className="users-page animate-fade-in">
@@ -273,9 +889,9 @@ export default function ControlsPage() {
                                     {cityEvents.length > 0 ? (
                                         cityEvents.map((event) => (
                                             <tr key={event._id || event.id}>
-                                                <td><span className="user-name">{event.eventName || event.name || '—'}</span></td>
-                                                <td>{event.eventDate || event.date || '—'}</td>
-                                                <td>{event.eventPlace || event.place || '—'}</td>
+                                                <td><span className="user-name">{event.eventName || event.title || event.event_name || event.name || '—'}</span></td>
+                                                <td>{event.eventDate || event.date || event.event_date || '—'}</td>
+                                                <td>{event.fullAddress || event.full_address || event.location || event.address || event.eventPlace || event.place || '—'}</td>
                                                 <td style={{ textAlign: 'center' }}>{event.totalMibMembers || event.mibMembers || 0}</td>
                                                 <td style={{ textAlign: 'center' }}>{event.totalMembersAttended || event.attended || 0}</td>
                                                 <td style={{ textAlign: 'center' }}>{event.totalVisitors || event.visitors || 0}</td>
@@ -1062,12 +1678,12 @@ export default function ControlsPage() {
                                                     {report.cityName || '—'}
                                                 </span>
                                             </td>
-                                            <td><span className="user-name">{report.eventName}</span></td>
-                                            <td>{report.eventDate}</td>
-                                            <td>{report.eventPlace}</td>
-                                            <td style={{ textAlign: 'center' }}>{report.totalMibMembers}</td>
-                                            <td style={{ textAlign: 'center' }}>{report.totalMembersAttended}</td>
-                                            <td style={{ textAlign: 'center' }}>{report.totalVisitors}</td>
+                                            <td><span className="user-name">{report.eventName || report.title || report.event_name || report.name || '—'}</span></td>
+                                            <td>{report.eventDate || report.date || report.event_date || '—'}</td>
+                                            <td>{report.fullAddress || report.full_address || report.location || report.address || report.eventPlace || report.place || '—'}</td>
+                                            <td style={{ textAlign: 'center' }}>{report.totalMibMembers || 0}</td>
+                                            <td style={{ textAlign: 'center' }}>{report.totalMembersAttended || 0}</td>
+                                            <td style={{ textAlign: 'center' }}>{report.totalVisitors || 0}</td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                                                     <span>{report.photoCount || 0} 📷</span>
@@ -1082,9 +1698,9 @@ export default function ControlsPage() {
                                             </td>
                                             <td>
                                                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '150px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                                    title={report.note || ''}
+                                                    title={report.note || report.description || ''}
                                                 >
-                                                    {report.note || '—'}
+                                                    {report.note || report.description || '—'}
                                                 </span>
                                             </td>
                                             <td>
