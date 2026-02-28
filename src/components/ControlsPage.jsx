@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText, CalendarCheck } from 'lucide-react';
 import ControlFormModal from './ControlFormModal';
 import { getEventReports, deleteEventReport, getUploadedEvents, deleteUploadedEvent } from '../services/dataService';
@@ -69,7 +69,15 @@ const INITIAL_HISTORY = [
 
 export default function ControlsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [view, setView] = useState('list'); // 'list', 'password', 'event', etc.
+    const [view, setView] = useState(
+        () => localStorage.getItem('mib-controls-view') || 'list'
+    );
+
+    // Persist controls sub-page so it survives refresh
+    const setViewPersisted = (v) => {
+        setView(v);
+        localStorage.setItem('mib-controls-view', v);
+    };
     const [history, setHistory] = useState(() => {
         const saved = localStorage.getItem('mib_control_history');
         return saved ? JSON.parse(saved) : INITIAL_HISTORY;
@@ -183,7 +191,7 @@ export default function ControlsPage() {
                 <div
                     key={option.id}
                     className="control-card"
-                    onClick={() => setView(option.id)}
+                    onClick={() => setViewPersisted(option.id)}
                 >
                     <div className="control-card-content">
                         <option.icon size={24} className="text-accent" />
@@ -215,7 +223,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control Panel
                         </button>
@@ -300,7 +308,7 @@ export default function ControlsPage() {
                             <button
                                 className="primary-btn"
                                 style={{ padding: '0.75rem 2rem' }}
-                                onClick={() => { setEventsError(null); setView('events'); }}
+                                onClick={() => { setEventsError(null); setViewPersisted('events'); }}
                             >
                                 Try Again
                             </button>
@@ -782,7 +790,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control History
                         </button>
@@ -934,7 +942,7 @@ export default function ControlsPage() {
                 return (
                     <div className="users-page animate-fade-in">
                         <div className="back-btn-container">
-                            <button className="back-btn" onClick={() => setView('list')}>
+                            <button className="back-btn" onClick={() => setViewPersisted('list')}>
                                 <ArrowLeft size={18} />
                                 Back to Control History
                             </button>
@@ -952,7 +960,7 @@ export default function ControlsPage() {
                 return (
                     <div className="users-page animate-fade-in">
                         <div className="back-btn-container">
-                            <button className="back-btn" onClick={() => setView('list')}>
+                            <button className="back-btn" onClick={() => setViewPersisted('list')}>
                                 <ArrowLeft size={18} />
                                 Back to Control History
                             </button>
@@ -960,7 +968,7 @@ export default function ControlsPage() {
                         <h2 className="section-title text-white" style={{ marginBottom: '2rem' }}>Event Reports</h2>
                         <div style={{ textAlign: 'center', padding: '3rem', color: '#f87171' }}>
                             <p>❌ {reportsError}</p>
-                            <button className="back-btn" style={{ margin: '1rem auto', display: 'inline-flex' }} onClick={() => { setReportsError(null); setView('event'); }}>
+                            <button className="back-btn" style={{ margin: '1rem auto', display: 'inline-flex' }} onClick={() => { setReportsError(null); setViewPersisted('event'); }}>
                                 Retry
                             </button>
                         </div>
@@ -985,7 +993,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control History
                         </button>
@@ -1224,7 +1232,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control History
                         </button>
@@ -1314,7 +1322,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control History
                         </button>
@@ -1408,7 +1416,7 @@ export default function ControlsPage() {
                                 alert('Event Uploaded Successfully!');
                                 setSelectedCityForUpload(null);
                                 setEventPhoto(null);
-                                setView('list');
+                                setViewPersisted('list');
                             }}>
                                 <div
                                     onClick={() => document.getElementById('event-photo-input').click()}
@@ -1571,7 +1579,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control History
                         </button>
@@ -1622,7 +1630,7 @@ export default function ControlsPage() {
             return (
                 <div className="users-page animate-fade-in">
                     <div className="back-btn-container">
-                        <button className="back-btn" onClick={() => setView('list')}>
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
                             <ArrowLeft size={18} />
                             Back to Control Panel
                         </button>
@@ -1643,7 +1651,7 @@ export default function ControlsPage() {
                     ) : reportsError ? (
                         <div style={{ textAlign: 'center', padding: '3rem', color: '#f87171' }}>
                             <p>❌ {reportsError}</p>
-                            <button className="back-btn" style={{ margin: '1rem auto', display: 'inline-flex' }} onClick={() => setView('submitted')}>
+                            <button className="back-btn" style={{ margin: '1rem auto', display: 'inline-flex' }} onClick={() => setViewPersisted('submitted')}>
                                 Retry
                             </button>
                         </div>
@@ -1725,7 +1733,7 @@ export default function ControlsPage() {
         return (
             <div className="animate-fade-in" style={{ textAlign: 'center', padding: 'var(--spacing-2xl)' }}>
                 <div className="back-btn-container" style={{ textAlign: 'left' }}>
-                    <button className="back-btn" onClick={() => setView('list')}>
+                    <button className="back-btn" onClick={() => setViewPersisted('list')}>
                         <ArrowLeft size={18} />
                         Back to Control History
                     </button>
@@ -1769,3 +1777,4 @@ export default function ControlsPage() {
         </main>
     );
 }
+

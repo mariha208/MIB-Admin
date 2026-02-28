@@ -147,6 +147,7 @@ async function authApiRequest(endpoint, options = {}) {
 
     const url = `${API_BASE_URL}${endpoint}`;
     console.log(`[dataService] ${options.method || 'GET'} ${url}`);
+    console.log("*************************************",token);
     
     const config = {
         headers: {
@@ -482,9 +483,11 @@ export async function deleteEventReport(reportId) {
 // GET All Uploaded Events - GET /events
 export async function getUploadedEvents() {
     console.log('[dataService] getUploadedEvents called');
-    const data = await authApiRequest('/events');
+    const data = await authApiRequest('/events/all');
     console.log('[dataService] Uploaded events response:', data);
     // Handle various response shapes
+    console.log("---------------------------------------------------\n",data.data.events);
+    
     if (data.data?.events) return data.data.events;
     if (data.events) return data.events;
     if (Array.isArray(data.data)) return data.data;

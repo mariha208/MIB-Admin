@@ -470,8 +470,8 @@ export function DataProvider({ children }) {
         if (storedUser) {
             try {
                 const parsed = JSON.parse(storedUser);
-                // If password is missing (old session), force logout/null
-                if (parsed.password) return parsed;
+                // Return stored user if it has at minimum an email (valid session)
+                if (parsed && parsed.email) return parsed;
                 localStorage.removeItem('mib-admin-user');
             } catch (e) {
                 localStorage.removeItem('mib-admin-user');
