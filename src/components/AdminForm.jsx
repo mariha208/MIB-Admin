@@ -72,25 +72,9 @@ export default function AdminForm({ mode = 'create', onNavigate, viewType = 'cha
                     <button
                         onClick={() => onNavigate('admins')}
                         className="back-btn"
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            cursor: 'pointer',
-                            position: 'absolute',
-                            left: 0,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            fontSize: '16px',
-                            padding: '8px',
-                            borderRadius: 'var(--radius-md)',
-                            transition: 'background 0.3s'
-                        }}
+                        style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }}
                     >
-                        <ArrowLeft size={20} /> Back
+                        <ArrowLeft size={18} /> Back
                     </button>
                     <h1 className="page-title">Assign {viewType === 'city' ? 'City' : 'Chapter'} Admin</h1>
                     <p className="page-subtitle">Select a member from the table to assign as administrator.</p>
