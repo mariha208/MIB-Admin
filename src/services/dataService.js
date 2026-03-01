@@ -502,3 +502,59 @@ export async function deleteUploadedEvent(eventId) {
     console.log('[dataService] Delete event response:', data);
     return data;
 }
+
+// ==========================================
+// Member Transfer Requests - Connected to backend
+// ==========================================
+
+// GET Pending Transfer Requests - GET /transfers/pending?status=Pending
+export async function getPendingTransfers() {
+    console.log('[dataService] getPendingTransfers called');
+    try {
+        const data = await authApiRequest('/transfers/pending?status=Pending');
+        console.log('[dataService] Pending transfers response:', data);
+
+        // Backend returns: { success: true, data: { requests: [...], count: N } }
+        if (data.data && data.data.requests) return data.data.requests;
+        if (data.data && data.data.transfers) return data.data.transfers;
+        if (data.data && Array.isArray(data.data)) return data.data;
+        if (data.requests) return data.requests;
+        if (data.transfers) return data.transfers;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching pending transfers:', error);
+        throw error;
+    }
+}
+
+// POST Approve Transfer - POST /transfers/:id/approve
+export async function approveTransfer(transferId) {
+    console.log('[dataService] approveTransfer called for ID:', transferId);
+    try {
+        const data = await authApiRequest(`/transfers/${transferId}/approve`, {
+            method: 'POST',
+        });
+        console.log('[dataService] Approve transfer response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error approving transfer:', error);
+        throw error;
+    }
+}
+
+// POST Reject Transfer - POST /transfers/:id/reject
+export async function rejectTransfer(transferId, reason) {
+    console.log('[dataService] rejectTransfer called for ID:', transferId, 'reason:', reason);
+    try {
+        const data = await authApiRequest(`/transfers/${transferId}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+        console.log('[dataService] Reject transfer response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error rejecting transfer:', error);
+        throw error;
+    }
+}

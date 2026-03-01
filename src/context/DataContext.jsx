@@ -3,7 +3,8 @@ import {
     getPendingRequests, approvePendingRequest, denyPendingRequest, signIn,
     getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin,
     getPendingChapters, approveChapter, rejectChapter,
-    getEventReports, getReportById, deleteEventReport
+    getEventReports, getReportById, deleteEventReport,
+    getPendingTransfers, approveTransfer, rejectTransfer
 } from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
@@ -91,6 +92,10 @@ export function DataProvider({ children }) {
 
     // Chapter requests state
     const [pendingChapters, setPendingChapters] = useState([]);
+
+    // Member transfer requests state
+    const [pendingTransfers, setPendingTransfers] = useState([]);
+    const [transfersLoading, setTransfersLoading] = useState(false);
 
     // Reports state
     const [reports, setReports] = useState([]);
@@ -410,6 +415,58 @@ export function DataProvider({ children }) {
     };
 
     // ==========================================
+    // Member Transfer Request Management Functions
+    // ==========================================
+
+    const fetchPendingTransferRequests = async () => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping transfer requests fetch');
+            return;
+        }
+        setTransfersLoading(true);
+        try {
+            const transfers = await getPendingTransfers();
+            console.log('[DataContext] Fetched pending transfers:', transfers);
+            setPendingTransfers(Array.isArray(transfers) ? transfers : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch pending transfers:', err);
+            setError(err.message);
+            setPendingTransfers([]);
+        } finally {
+            setTransfersLoading(false);
+        }
+    };
+
+    const approveTransferRequest = async (transferId) => {
+        try {
+            console.log('[DataContext] Approving transfer:', transferId);
+            const result = await approveTransfer(transferId);
+            console.log('[DataContext] Approve transfer result:', result);
+            // Remove from pending list
+            setPendingTransfers(prev => prev.filter(t => t._id !== transferId && t.id !== transferId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to approve transfer:', err);
+            throw err;
+        }
+    };
+
+    const rejectTransferRequest = async (transferId, reason) => {
+        try {
+            console.log('[DataContext] Rejecting transfer:', transferId, 'reason:', reason);
+            const result = await rejectTransfer(transferId, reason);
+            console.log('[DataContext] Reject transfer result:', result);
+            // Remove from pending list
+            setPendingTransfers(prev => prev.filter(t => t._id !== transferId && t.id !== transferId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to reject transfer:', err);
+            throw err;
+        }
+    };
+
+    // ==========================================
     // Reports Management Functions
     // ==========================================
 
@@ -533,8 +590,9 @@ export function DataProvider({ children }) {
                 // Fetch pending requests after successful login - pass token directly!
                 console.log('[DataContext] Fetching pending requests with token directly...');
                 await fetchPendingRequests(token);
-                // Also fetch pending chapter requests
+                // Also fetch pending chapter and transfer requests
                 await fetchPendingChapterRequests();
+                await fetchPendingTransferRequests();
             } else {
                 console.warn('[DataContext] WARNING: No token found in login response! Pending requests will not work.');
             }
@@ -565,6 +623,7 @@ export function DataProvider({ children }) {
             console.log('[DataContext] User has token, fetching pending requests on mount...');
             fetchPendingRequests();
             fetchPendingChapterRequests();
+            fetchPendingTransferRequests();
         } else {
             console.log('[DataContext] No token found, skipping pending requests fetch');
         }
@@ -606,6 +665,12 @@ export function DataProvider({ children }) {
             fetchPendingChapterRequests,
             approveChapterRequest,
             rejectChapterRequest,
+            // Member transfer request management
+            pendingTransfers,
+            transfersLoading,
+            fetchPendingTransferRequests,
+            approveTransferRequest,
+            rejectTransferRequest,
             // Reports management
             reports,
             selectedReport,
