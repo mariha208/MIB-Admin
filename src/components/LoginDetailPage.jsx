@@ -34,7 +34,7 @@ export default function LoginDetailPage() {
             }
         } catch (error) {
             console.error('Error handling approval:', error);
-            alert('Failed to update request status. Please try again.');
+            alert(`Failed to update request status: ${error.message || 'Unknown error'}. Please try again.`);
         }
     };
 
