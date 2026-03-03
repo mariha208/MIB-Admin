@@ -185,10 +185,10 @@ export function DataProvider({ children }) {
     };
 
     // Deny a pending request - removes from pending requests
-    const denyRequest = async (requestId) => {
+    const denyRequest = async (requestId, reason = 'Registration denied by administrator.') => {
         try {
-            console.log('[DataContext] Denying request:', requestId);
-            await denyPendingRequest(requestId);
+            console.log('[DataContext] Denying request:', requestId, 'with reason:', reason);
+            await denyPendingRequest(requestId, reason);
             console.log('[DataContext] Deny API call successful');
 
             // Remove from pendingRequests
@@ -266,8 +266,8 @@ export function DataProvider({ children }) {
         if (storedUser) {
             try {
                 const parsed = JSON.parse(storedUser);
-                // If password is missing (old session), force logout/null
-                if (parsed.password) return parsed;
+                // Check for token-based session (API login) or legacy password-based session
+                if (parsed.token || parsed.password) return parsed;
                 localStorage.removeItem('mib-admin-user');
             } catch (e) {
                 localStorage.removeItem('mib-admin-user');

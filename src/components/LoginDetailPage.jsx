@@ -6,13 +6,13 @@ import { useData } from '../context/DataContext';
 export default function LoginDetailPage() {
     const { data, pendingLoading, approveRequest, denyRequest, fetchPendingRequests } = useData();
     const pendingRequests = data.pendingRequests || [];
-    
+
     // Fetch pending requests when page mounts
     useEffect(() => {
         console.log('[LoginDetailPage] Page mounted, fetching pending requests...');
         fetchPendingRequests();
     }, []);
-    
+
     // Debug logging
     console.log('[LoginDetailPage] Rendering with data:', data);
     console.log('[LoginDetailPage] pendingRequests:', pendingRequests);
@@ -28,13 +28,16 @@ export default function LoginDetailPage() {
                 console.log('[LoginDetailPage] Request approved, user added:', result.user);
                 alert(`User "${result.user?.name || 'Unknown'}" has been approved and added to the Users table!`);
             } else {
-                await denyRequest(requestId);
+                const reason = prompt('Please enter a reason for denial:', 'Registration denied by administrator.');
+                if (reason === null) return; // User cancelled
+                await denyRequest(requestId, reason);
                 console.log('[LoginDetailPage] Request denied');
                 alert('Request has been denied and removed from pending list.');
             }
         } catch (error) {
             console.error('Error handling approval:', error);
-            alert('Failed to update request status. Please try again.');
+            const errorMessage = error.message || 'Unknown error';
+            alert(`Failed to update request status: ${errorMessage}\n\nPlease check the console for more details.`);
         }
     };
 

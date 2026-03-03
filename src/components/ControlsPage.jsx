@@ -512,7 +512,6 @@ export default function ControlsPage() {
                                 </h3>
                                 <ul style={{
                                     listStyle: 'none',
-                                    padding: 0,
                                     margin: 0,
                                     flex: 1,
                                     background: 'rgba(0,0,0,0.1)',
@@ -601,7 +600,6 @@ export default function ControlsPage() {
                                 </h3>
                                 <ul style={{
                                     listStyle: 'none',
-                                    padding: 0,
                                     margin: 0,
                                     flex: 1,
                                     background: 'rgba(0,0,0,0.1)',

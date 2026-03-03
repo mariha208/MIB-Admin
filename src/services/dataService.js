@@ -27,11 +27,11 @@ async function apiRequest(endpoint, options = {}) {
 // Authentication - Sign In
 export async function signIn(email, password) {
     console.log('[dataService] signIn called with email:', email);
-    
+
     try {
         const url = `${API_BASE_URL}/auth/signin`;
         console.log('[dataService] Making POST request to:', url);
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -39,17 +39,17 @@ export async function signIn(email, password) {
             },
             body: JSON.stringify({ email, password }),
         });
-        
+
         console.log('[dataService] Response status:', response.status);
-        
+
         const data = await response.json();
         console.log('[dataService] Response data:', data);
-        
+
         if (!response.ok) {
             console.error('[dataService] Sign in failed:', data);
             throw new Error(data.message || data.error || `Sign in failed: ${response.status}`);
         }
-        
+
         console.log('[dataService] Sign in successful:', data);
         console.log('[dataService] Token locations in response:');
         console.log('  - data.token:', data.token);
@@ -145,21 +145,21 @@ export function getAuthToken() {
 // Now accepts token as parameter for reliability
 export async function getPendingRequests(token = null) {
     console.log('[dataService] getPendingRequests called');
-    
+
     // Use provided token or try to get from localStorage
     const authToken = token || getAuthToken();
     console.log('[dataService] Using token:', authToken ? authToken.substring(0, 15) + '...' : 'NONE');
-    
+
     if (!authToken) {
         console.warn('[dataService] No auth token available, returning empty array');
         return [];
     }
-    
+
     try {
         const url = `${API_BASE_URL}/admin/pending-requests`;
         console.log('[dataService] Making GET request to:', url);
         console.log('[dataService] Authorization header: Bearer', authToken.substring(0, 10) + '...');
-        
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -167,44 +167,44 @@ export async function getPendingRequests(token = null) {
                 'Authorization': `Bearer ${authToken}`,
             },
         });
-        
+
         console.log('[dataService] Response status:', response.status);
-        
+
         const data = await response.json();
         console.log('[dataService] Response data:', data);
-        
+
         if (!response.ok) {
             console.error('[dataService] Failed to fetch pending requests:', data);
             throw new Error(data.message || data.error || `Failed to fetch: ${response.status}`);
         }
-        
+
         // Handle the response structure from your backend
         // Your backend returns: { data: { requests: [...], count: N } }
-        
+
         // Check for nested data.data.requests structure
         if (data.data && data.data.requests) {
             console.log('[dataService] Returning pending requests from data.data.requests:', data.data.requests);
             return data.data.requests;
         }
-        
+
         // Check for data.requests structure
         if (data.requests) {
             console.log('[dataService] Returning pending requests from data.requests:', data.requests);
             return data.requests;
         }
-        
+
         // Fallback for data.data array structure
         if (data.data && Array.isArray(data.data)) {
             console.log('[dataService] Returning pending requests from data.data:', data.data);
             return data.data;
         }
-        
+
         // If it's already an array, return it
         if (Array.isArray(data)) {
             console.log('[dataService] Returning raw array:', data);
             return data;
         }
-        
+
         console.log('[dataService] Returning raw response:', data);
         return data;
     } catch (error) {
@@ -215,16 +215,16 @@ export async function getPendingRequests(token = null) {
 
 export async function approvePendingRequest(requestId) {
     console.log('[dataService] approvePendingRequest called for ID:', requestId);
-    
+
     try {
         const token = getAuthToken();
         if (!token) {
             throw new Error('No authentication token found. Please login first.');
         }
-        
+
         const url = `${API_BASE_URL}/admin/pending-requests/${requestId}/approve`;
         console.log('[dataService] Making POST request to:', url);
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -232,16 +232,16 @@ export async function approvePendingRequest(requestId) {
                 'Authorization': `Bearer ${token}`,
             },
         });
-        
+
         console.log('[dataService] Approve response status:', response.status);
-        
+
         const data = await response.json();
         console.log('[dataService] Approve response data:', data);
-        
+
         if (!response.ok) {
             throw new Error(data.message || data.error || `Failed to approve: ${response.status}`);
         }
-        
+
         return data;
     } catch (error) {
         console.error('[dataService] Error approving request:', error);
@@ -249,39 +249,39 @@ export async function approvePendingRequest(requestId) {
     }
 }
 
-export async function denyPendingRequest(requestId) {
+export async function denyPendingRequest(requestId, reason = 'Registration denied by administrator.') {
     console.log('[dataService] denyPendingRequest called for ID:', requestId);
-    
+
     try {
         const token = getAuthToken();
         if (!token) {
             throw new Error('No authentication token found. Please login first.');
         }
-        
+
         const url = `${API_BASE_URL}/admin/pending-requests/${requestId}/deny`;
         console.log('[dataService] Making POST request to:', url);
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
             },
+            body: JSON.stringify({ reason }),
         });
-        
+
         console.log('[dataService] Deny response status:', response.status);
-        
+
         const data = await response.json();
         console.log('[dataService] Deny response data:', data);
-        
+
         if (!response.ok) {
             throw new Error(data.message || data.error || `Failed to deny: ${response.status}`);
         }
-        
+
         return data;
     } catch (error) {
         console.error('[dataService] Error denying request:', error);
         throw error;
     }
 }
-
