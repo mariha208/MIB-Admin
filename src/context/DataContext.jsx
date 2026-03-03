@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getPendingRequests, approvePendingRequest, denyPendingRequest, signIn } from '../services/dataService';
+import {
+    getPendingRequests, approvePendingRequest, denyPendingRequest, signIn,
+    getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin,
+    getPendingChapters, approveChapter, rejectChapter,
+    getEventReports, getReportById, deleteEventReport,
+    getPendingTransfers, approveTransfer, rejectTransfer
+} from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
 const initialData = {
@@ -77,6 +83,25 @@ export function DataProvider({ children }) {
     const [loading, setLoading] = useState(false);
     const [pendingLoading, setPendingLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Admin management state
+    const [cityAdmins, setCityAdmins] = useState([]);
+    const [chapterAdmins, setChapterAdmins] = useState([]);
+    const [adminsLoading, setAdminsLoading] = useState(false);
+    const [membersForAssignment, setMembersForAssignment] = useState([]);
+
+    // Chapter requests state
+    const [pendingChapters, setPendingChapters] = useState([]);
+
+    // Member transfer requests state
+    const [pendingTransfers, setPendingTransfers] = useState([]);
+    const [transfersLoading, setTransfersLoading] = useState(false);
+
+    // Reports state
+    const [reports, setReports] = useState([]);
+    const [selectedReport, setSelectedReport] = useState(null);
+    const [reportsLoading, setReportsLoading] = useState(false);
+    const [chaptersLoading, setChaptersLoading] = useState(false);
 
     // Simulated API fetch - replace with real API calls
     const fetchData = async () => {
@@ -258,7 +283,243 @@ export function DataProvider({ children }) {
         // TODO: API call to add chapter
     };
 
+    // ==========================================
+    // Admin Management Functions
+    // ==========================================
 
+    const fetchCityAdmins = async (search = '') => {
+        setAdminsLoading(true);
+        try {
+            const admins = await getCityAdmins(search);
+            console.log('[DataContext] Fetched city admins:', admins);
+            setCityAdmins(Array.isArray(admins) ? admins : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch city admins:', err);
+            setError(err.message);
+            setCityAdmins([]);
+        } finally {
+            setAdminsLoading(false);
+        }
+    };
+
+    const fetchChapterAdmins = async (search = '') => {
+        setAdminsLoading(true);
+        try {
+            const admins = await getChapterAdmins(search);
+            console.log('[DataContext] Fetched chapter admins:', admins);
+            setChapterAdmins(Array.isArray(admins) ? admins : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch chapter admins:', err);
+            setError(err.message);
+            setChapterAdmins([]);
+        } finally {
+            setAdminsLoading(false);
+        }
+    };
+
+    const removeAdminById = async (adminId) => {
+        try {
+            console.log('[DataContext] Removing admin:', adminId);
+            await removeAdmin(adminId);
+            // Remove from local state
+            setCityAdmins(prev => prev.filter(a => a.id !== adminId));
+            setChapterAdmins(prev => prev.filter(a => a.id !== adminId));
+            return { success: true };
+        } catch (err) {
+            console.error('[DataContext] Failed to remove admin:', err);
+            throw err;
+        }
+    };
+
+    const fetchMembersForAssignment = async (search = '') => {
+        try {
+            const members = await getMembersForAssignment(search);
+            console.log('[DataContext] Fetched members for assignment:', members);
+            setMembersForAssignment(Array.isArray(members) ? members : []);
+            return Array.isArray(members) ? members : [];
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch members:', err);
+            setMembersForAssignment([]);
+            throw err;
+        }
+    };
+
+    const assignNewAdmin = async (userId, role, cityId, chapterId = null) => {
+        try {
+            console.log('[DataContext] Assigning admin:', { userId, role, cityId, chapterId });
+            const result = await assignAdmin(userId, role, cityId, chapterId);
+            console.log('[DataContext] Admin assigned:', result);
+            // Refresh the admin lists
+            if (role === 'City_Admin') {
+                await fetchCityAdmins();
+            } else {
+                await fetchChapterAdmins();
+            }
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to assign admin:', err);
+            throw err;
+        }
+    };
+
+    // ==========================================
+    // Chapter Request Management Functions
+    // ==========================================
+
+    const fetchPendingChapterRequests = async () => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping chapter requests fetch');
+            return;
+        }
+        setChaptersLoading(true);
+        try {
+            const chapters = await getPendingChapters();
+            console.log('[DataContext] Fetched pending chapters:', chapters);
+            setPendingChapters(Array.isArray(chapters) ? chapters : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch pending chapters:', err);
+            setError(err.message);
+            setPendingChapters([]);
+        } finally {
+            setChaptersLoading(false);
+        }
+    };
+
+    const approveChapterRequest = async (chapterId) => {
+        try {
+            console.log('[DataContext] Approving chapter:', chapterId);
+            const result = await approveChapter(chapterId);
+            console.log('[DataContext] Approve chapter result:', result);
+            // Remove from pending list
+            setPendingChapters(prev => prev.filter(ch => ch._id !== chapterId && ch.id !== chapterId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to approve chapter:', err);
+            throw err;
+        }
+    };
+
+    const rejectChapterRequest = async (chapterId, reason) => {
+        try {
+            console.log('[DataContext] Rejecting chapter:', chapterId, 'reason:', reason);
+            const result = await rejectChapter(chapterId, reason);
+            console.log('[DataContext] Reject chapter result:', result);
+            // Remove from pending list
+            setPendingChapters(prev => prev.filter(ch => ch._id !== chapterId && ch.id !== chapterId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to reject chapter:', err);
+            throw err;
+        }
+    };
+
+    // ==========================================
+    // Member Transfer Request Management Functions
+    // ==========================================
+
+    const fetchPendingTransferRequests = async () => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping transfer requests fetch');
+            return;
+        }
+        setTransfersLoading(true);
+        try {
+            const transfers = await getPendingTransfers();
+            console.log('[DataContext] Fetched pending transfers:', transfers);
+            setPendingTransfers(Array.isArray(transfers) ? transfers : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch pending transfers:', err);
+            setError(err.message);
+            setPendingTransfers([]);
+        } finally {
+            setTransfersLoading(false);
+        }
+    };
+
+    const approveTransferRequest = async (transferId) => {
+        try {
+            console.log('[DataContext] Approving transfer:', transferId);
+            const result = await approveTransfer(transferId);
+            console.log('[DataContext] Approve transfer result:', result);
+            // Remove from pending list
+            setPendingTransfers(prev => prev.filter(t => t._id !== transferId && t.id !== transferId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to approve transfer:', err);
+            throw err;
+        }
+    };
+
+    const rejectTransferRequest = async (transferId, reason) => {
+        try {
+            console.log('[DataContext] Rejecting transfer:', transferId, 'reason:', reason);
+            const result = await rejectTransfer(transferId, reason);
+            console.log('[DataContext] Reject transfer result:', result);
+            // Remove from pending list
+            setPendingTransfers(prev => prev.filter(t => t._id !== transferId && t.id !== transferId));
+            return { success: true, data: result };
+        } catch (err) {
+            console.error('[DataContext] Failed to reject transfer:', err);
+            throw err;
+        }
+    };
+
+    // ==========================================
+    // Reports Management Functions
+    // ==========================================
+
+    const fetchReports = async (cityFilter = null) => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping reports fetch');
+            return;
+        }
+        setReportsLoading(true);
+        try {
+            const data = await getEventReports(cityFilter);
+            console.log('[DataContext] Fetched reports:', data);
+            setReports(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch reports:', err);
+            setError(err.message);
+            setReports([]);
+        } finally {
+            setReportsLoading(false);
+        }
+    };
+
+    const fetchReportById = async (reportId) => {
+        try {
+            console.log('[DataContext] Fetching report:', reportId);
+            const data = await getReportById(reportId);
+            console.log('[DataContext] Fetched report detail:', data);
+            setSelectedReport(data);
+            return data;
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch report:', err);
+            throw err;
+        }
+    };
+
+    const deleteReport = async (reportId) => {
+        try {
+            console.log('[DataContext] Deleting report:', reportId);
+            await deleteEventReport(reportId);
+            // Remove from local state
+            setReports(prev => prev.filter(r => (r._id || r.id) !== reportId));
+            // Clear selected if it was the deleted one
+            if (selectedReport && (selectedReport._id === reportId || selectedReport.id === reportId)) {
+                setSelectedReport(null);
+            }
+            console.log('[DataContext] Report deleted successfully');
+            return { success: true };
+        } catch (err) {
+            console.error('[DataContext] Failed to delete report:', err);
+            throw err;
+        }
+    };
 
     // Authentication State
     const [user, setUser] = useState(() => {
@@ -329,6 +590,9 @@ export function DataProvider({ children }) {
                 // Fetch pending requests after successful login - pass token directly!
                 console.log('[DataContext] Fetching pending requests with token directly...');
                 await fetchPendingRequests(token);
+                // Also fetch pending chapter and transfer requests
+                await fetchPendingChapterRequests();
+                await fetchPendingTransferRequests();
             } else {
                 console.warn('[DataContext] WARNING: No token found in login response! Pending requests will not work.');
             }
@@ -358,6 +622,8 @@ export function DataProvider({ children }) {
         if (token) {
             console.log('[DataContext] User has token, fetching pending requests on mount...');
             fetchPendingRequests();
+            fetchPendingChapterRequests();
+            fetchPendingTransferRequests();
         } else {
             console.log('[DataContext] No token found, skipping pending requests fetch');
         }
@@ -369,6 +635,7 @@ export function DataProvider({ children }) {
             loading,
             pendingLoading,
             loginLoading,
+            adminsLoading,
             error,
             user,
             isAuthenticated: !!user,
@@ -383,6 +650,34 @@ export function DataProvider({ children }) {
             updateUser,
             deleteUser,
             addChapter,
+            // Admin management
+            cityAdmins,
+            chapterAdmins,
+            membersForAssignment,
+            fetchCityAdmins,
+            fetchChapterAdmins,
+            removeAdminById,
+            fetchMembersForAssignment,
+            assignNewAdmin,
+            // Chapter request management
+            pendingChapters,
+            chaptersLoading,
+            fetchPendingChapterRequests,
+            approveChapterRequest,
+            rejectChapterRequest,
+            // Member transfer request management
+            pendingTransfers,
+            transfersLoading,
+            fetchPendingTransferRequests,
+            approveTransferRequest,
+            rejectTransferRequest,
+            // Reports management
+            reports,
+            selectedReport,
+            reportsLoading,
+            fetchReports,
+            fetchReportById,
+            deleteReport,
         }}>
             {children}
         </DataContext.Provider>

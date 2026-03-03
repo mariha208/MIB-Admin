@@ -1,65 +1,66 @@
-import { useState, useMemo } from 'react';
-import { Search, ChevronDown, Check, X, Plus, Edit2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, Check, X, Plus, Edit2, Loader2, RefreshCw } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 export default function AdminsPage({ onNavigate }) {
-    const { data, updateUser } = useData();
+    const {
+        cityAdmins,
+        chapterAdmins,
+        adminsLoading,
+        fetchCityAdmins,
+        fetchChapterAdmins,
+        removeAdminById,
+    } = useData();
+
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewType, setViewType] = useState('chapter'); // 'chapter' or 'city'
+    const [viewType, setViewType] = useState('city'); // 'city' or 'chapter'
     const [isEditMode, setIsEditMode] = useState(false);
     const [pendingDeletions, setPendingDeletions] = useState(new Set());
     const [isSaving, setIsSaving] = useState(false);
 
-    const filteredUsers = useMemo(() => {
-        // First filter for role and search criteria
-        const baseFiltered = data.users.filter(user => {
-            const isCityAdmin = user.role === 'City Admin';
+    // Current list based on active tab
+    const adminsList = viewType === 'city' ? cityAdmins : chapterAdmins;
 
-            // Filter by viewType:
-            // 'chapter' view shows those assigned to specific chapters (chapter !== 'All')
-            // 'city' view shows those assigned to entire cities (chapter === 'All')
-            const matchesView = viewType === 'chapter'
-                ? (user.chapter && user.chapter !== 'All')
-                : (user.chapter === 'All');
+    // Fetch admins when tab changes or search changes
+    const fetchAdmins = useCallback(async () => {
+        if (viewType === 'city') {
+            await fetchCityAdmins(searchQuery);
+        } else {
+            await fetchChapterAdmins(searchQuery);
+        }
+    }, [viewType, searchQuery]);
 
-            const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                user.id.toString().includes(searchQuery);
+    // Fetch on mount and tab switch
+    useEffect(() => {
+        fetchAdmins();
+    }, [viewType]);
 
-            return isCityAdmin && matchesView && matchesSearch;
-        });
-
-        // Then ensure uniqueness
-        const seen = new Set();
-        return baseFiltered.filter(user => {
-            // For chapter view, unique per City + Chapter
-            // For city view, unique per City
-            const key = viewType === 'chapter'
-                ? `${user.city}-${user.chapter}`
-                : user.city;
-
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-    }, [data.users, searchQuery, viewType]);
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchAdmins();
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleEditToggle = async () => {
         if (isEditMode) {
-            // Save Changes
+            // Save Changes — remove all marked admins
             if (pendingDeletions.size > 0) {
-                if (window.confirm(`Are you sure you want to remove ${pendingDeletions.size} admin(s)?`)) {
+                if (window.confirm(`Are you sure you want to remove ${pendingDeletions.size} admin(s)? They will be demoted back to Member.`)) {
                     setIsSaving(true);
                     try {
-                        // Execute all deletions
-                        const promises = Array.from(pendingDeletions).map(userId =>
-                            updateUser(userId, { role: 'User', approvalStatus: 'Rejected' })
+                        const promises = Array.from(pendingDeletions).map(adminId =>
+                            removeAdminById(adminId)
                         );
                         await Promise.all(promises);
                         setPendingDeletions(new Set());
                         setIsEditMode(false);
+                        // Refresh list after removals
+                        await fetchAdmins();
                     } catch (error) {
                         console.error("Failed to save changes", error);
-                        alert("Failed to save changes. Please try again.");
+                        alert("Failed to remove some admins. Please try again.");
                     } finally {
                         setIsSaving(false);
                     }
@@ -74,14 +75,12 @@ export default function AdminsPage({ onNavigate }) {
         }
     };
 
-    const toggleDeletionMark = (userId) => {
+    const toggleDeletionMark = (adminId) => {
         const newPending = new Set(pendingDeletions);
-        if (newPending.has(userId)) {
-            newPending.delete(userId);
+        if (newPending.has(adminId)) {
+            newPending.delete(adminId);
         } else {
-            if (window.confirm("Mark this admin for removal? (Will be removed on Save)")) {
-                newPending.add(userId);
-            }
+            newPending.add(adminId);
         }
         setPendingDeletions(newPending);
     };
@@ -91,7 +90,7 @@ export default function AdminsPage({ onNavigate }) {
             <header className="page-header center-header">
                 <div className="header-content">
                     <h1 className="page-title">Admins</h1>
-                    <p className="page-subtitle">Approve and manage city administrators.</p>
+                    <p className="page-subtitle">Manage city and chapter administrators.</p>
                 </div>
             </header>
 
@@ -100,13 +99,14 @@ export default function AdminsPage({ onNavigate }) {
                     <Search className="search-icon" size={18} />
                     <input
                         type="text"
-                        placeholder="Search users by name or ID..."
+                        placeholder="Search admins by name..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {/* Tab Toggle */}
                     <div className="view-toggle" style={{
                         display: 'flex',
                         background: 'rgba(255, 255, 255, 0.05)',
@@ -115,7 +115,7 @@ export default function AdminsPage({ onNavigate }) {
                         border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}>
                         <button
-                            onClick={() => setViewType('city')}
+                            onClick={() => { setViewType('city'); setIsEditMode(false); setPendingDeletions(new Set()); }}
                             style={{
                                 padding: '8px 16px',
                                 borderRadius: 'calc(var(--radius-md) - 2px)',
@@ -131,7 +131,7 @@ export default function AdminsPage({ onNavigate }) {
                             City Admins
                         </button>
                         <button
-                            onClick={() => setViewType('chapter')}
+                            onClick={() => { setViewType('chapter'); setIsEditMode(false); setPendingDeletions(new Set()); }}
                             style={{
                                 padding: '8px 16px',
                                 borderRadius: 'calc(var(--radius-md) - 2px)',
@@ -148,6 +148,27 @@ export default function AdminsPage({ onNavigate }) {
                         </button>
                     </div>
 
+                    {/* Refresh Button */}
+                    <button
+                        onClick={fetchAdmins}
+                        disabled={adminsLoading}
+                        style={{
+                            padding: '10px',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            background: 'transparent',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'all 0.3s'
+                        }}
+                        title="Refresh"
+                    >
+                        {adminsLoading ? <Loader2 size={18} className="spin" /> : <RefreshCw size={18} />}
+                    </button>
+
+                    {/* Create Admin */}
                     <button
                         className="create-btn"
                         onClick={() => onNavigate(`create-admin/${viewType}`)}
@@ -169,6 +190,7 @@ export default function AdminsPage({ onNavigate }) {
                         Create Admin
                     </button>
 
+                    {/* Edit Mode Toggle */}
                     <button
                         onClick={handleEditToggle}
                         disabled={isSaving}
@@ -193,69 +215,79 @@ export default function AdminsPage({ onNavigate }) {
             </div>
 
             <div className="table-container">
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>User ID</th>
-                            <th>Name</th>
-                            <th>City Name</th>
-                            {viewType !== 'city' && <th>Chapter Name</th>}
-                            {isEditMode && <th style={{ textAlign: 'center' }}>Edit Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredUsers.length > 0 ? (
-                            filteredUsers.map((user) => {
-                                const isPendingDeletion = pendingDeletions.has(user.id);
-                                return (
-                                    <tr key={user.id} style={{
-                                        opacity: isPendingDeletion ? 0.5 : 1,
-                                        background: isPendingDeletion ? 'rgba(0,0,0,0.1)' : undefined,
-                                        transition: 'all 0.3s'
-                                    }}>
-                                        <td><span className="id-badge">#{user.id}</span></td>
-                                        <td>
-                                            <div className="user-info">
-                                                <div className="user-avatar">{user.name.charAt(0)}</div>
-                                                <span className="user-name">{user.name}</span>
-                                            </div>
-                                        </td>
-                                        <td>{user.city}</td>
-                                        {viewType !== 'city' && <td>{user.chapter}</td>}
-                                        {isEditMode && (
+                {adminsLoading && adminsList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
+                        <Loader2 size={32} className="spin" style={{ marginBottom: '12px' }} />
+                        <p>Loading admins...</p>
+                    </div>
+                ) : (
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Name</th>
+                                <th>City Name</th>
+                                {viewType === 'chapter' && <th>Chapter Name</th>}
+                                {isEditMode && <th style={{ textAlign: 'center' }}>Edit Actions</th>}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {adminsList.length > 0 ? (
+                                adminsList.map((admin) => {
+                                    const isPendingDeletion = pendingDeletions.has(admin.id);
+                                    return (
+                                        <tr key={admin.id} style={{
+                                            opacity: isPendingDeletion ? 0.5 : 1,
+                                            background: isPendingDeletion ? 'rgba(0,0,0,0.1)' : undefined,
+                                            transition: 'all 0.3s'
+                                        }}>
+                                            <td><span className="id-badge">#{admin.id}</span></td>
                                             <td>
-                                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                                                    <button
-                                                        onClick={() => toggleDeletionMark(user.id)}
-                                                        title={isPendingDeletion ? "Undo Removal" : "Remove Admin"}
-                                                        style={{
-                                                            padding: '6px',
-                                                            borderRadius: '50%',
-                                                            border: 'none',
-                                                            cursor: 'pointer',
-                                                            background: isPendingDeletion ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 118, 117, 0.1)',
-                                                            color: isPendingDeletion ? 'white' : '#ff7675',
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}
-                                                    >
-                                                        {isPendingDeletion ? <Check size={18} /> : <X size={18} />}
-                                                    </button>
+                                                <div className="user-info">
+                                                    <div className="user-avatar">{(admin.name || '?').charAt(0)}</div>
+                                                    <span className="user-name">{admin.name || 'N/A'}</span>
                                                 </div>
                                             </td>
-                                        )}
-                                    </tr>
-                                );
-                            })
-                        ) : (
-                            <tr>
-                                <td colSpan={viewType === 'city' ? (isEditMode ? 4 : 3) : (isEditMode ? 5 : 4)} className="no-results">
-                                    No admins found matching your criteria.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                                            <td>{admin.cityName || admin.city || 'N/A'}</td>
+                                            {viewType === 'chapter' && <td>{admin.chapterName || admin.chapter || 'N/A'}</td>}
+                                            {isEditMode && (
+                                                <td>
+                                                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                                        <button
+                                                            onClick={() => toggleDeletionMark(admin.id)}
+                                                            title={isPendingDeletion ? "Undo Removal" : "Remove Admin"}
+                                                            style={{
+                                                                padding: '6px',
+                                                                borderRadius: '50%',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                background: isPendingDeletion ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 118, 117, 0.1)',
+                                                                color: isPendingDeletion ? 'white' : '#ff7675',
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }}
+                                                        >
+                                                            {isPendingDeletion ? <Check size={18} /> : <X size={18} />}
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan={viewType === 'city' ? (isEditMode ? 4 : 3) : (isEditMode ? 5 : 4)} className="no-results">
+                                        {searchQuery
+                                            ? `No admins found matching "${searchQuery}".`
+                                            : `No ${viewType} admins found.`
+                                        }
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                )}
             </div>
         </div>
     );

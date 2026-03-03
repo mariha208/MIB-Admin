@@ -17,7 +17,7 @@ import './index.css';
 import { formatIndianCurrency } from './utils/formatters';
 
 function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
-  const { data, loading } = useData();
+  const { data, loading, pendingChapters, pendingTransfers = [] } = useData();
 
   if (loading) {
     return (
@@ -30,6 +30,8 @@ function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
       </div>
     );
   }
+
+  const totalNotifications = (pendingChapters?.length || 0) + (pendingTransfers?.length || 0);
 
   return (
     <main className="main-content">
@@ -58,7 +60,16 @@ function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
             onClick={() => onNavigate('notifications')}
           >
             <Bell size={20} />
-            <span className="notification-badge"></span>
+            {totalNotifications > 0 && (
+              <span className="notification-badge" style={{
+                width: 'auto', minWidth: '16px', height: '16px',
+                fontSize: '10px', fontWeight: '700', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 4px', top: '6px', right: '6px',
+              }}>
+                {totalNotifications}
+              </span>
+            )}
           </button>
         </div>
       </header>
@@ -108,7 +119,9 @@ function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
 }
 
 function App() {
-  const [activeNav, setActiveNav] = useState('dashboard');
+  const [activeNav, setActiveNav] = useState(
+    () => localStorage.getItem('mib-admin-activepage') || 'dashboard'
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('mib-admin-theme') || 'dark');
   const [showProfile, setShowProfile] = useState(false);
@@ -117,6 +130,12 @@ function App() {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     localStorage.setItem('mib-admin-theme', newTheme);
+  };
+
+  // Wrapper that persists the active page so it survives browser refresh
+  const navigateTo = (page) => {
+    setActiveNav(page);
+    localStorage.setItem('mib-admin-activepage', page);
   };
 
   const isCategoryPage = ['business', 'referrals', '1-2-1', 'visitors'].includes(activeNav);
@@ -141,13 +160,13 @@ function App() {
         )}
         <Sidebar
           activeItem={activeNav}
-          onNavClick={setActiveNav}
+          onNavClick={navigateTo}
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
         {activeNav === 'dashboard' ? (
-          <Dashboard onNavigate={setActiveNav} theme={theme} onToggleTheme={toggleTheme} onShowProfile={() => setShowProfile(true)} />
+          <Dashboard onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} onShowProfile={() => setShowProfile(true)} />
         ) : activeNav === 'users' ? (
           <main className="main-content">
             <header className="page-header center-header">
@@ -175,18 +194,18 @@ function App() {
         ) : activeNav === 'controls' ? (
           <ControlsPage />
         ) : activeNav === 'admins' ? (
-          <AdminsPage onNavigate={setActiveNav} />
+          <AdminsPage onNavigate={navigateTo} />
         ) : activeNav === 'create-admin' || activeNav.startsWith('create-admin/') ? (
           <AdminForm
             mode="create"
             viewType={activeNav.includes('/') ? activeNav.split('/')[1] : 'chapter'}
-            onNavigate={setActiveNav}
+            onNavigate={navigateTo}
           />
         ) : activeNav.startsWith('edit-admin/') ? (
-          <AdminForm mode="edit" adminId={activeNav.split('/')[1]} onNavigate={setActiveNav} />
+          <AdminForm mode="edit" adminId={activeNav.split('/')[1]} onNavigate={navigateTo} />
         ) : activeNav === 'notifications' ? (
           <main className="main-content">
-            <NotificationsPage onNavigate={setActiveNav} />
+            <NotificationsPage onNavigate={navigateTo} />
           </main>
         ) : (
           <main className="main-content">

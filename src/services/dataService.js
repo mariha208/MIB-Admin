@@ -134,6 +134,103 @@ export async function getVisitors(filters = {}) {
     return [];
 }
 
+// ==========================================
+// Admin Management - Connected to backend
+// ==========================================
+
+// Helper for authenticated API requests
+async function authApiRequest(endpoint, options = {}) {
+    const token = localStorage.getItem('mib-admin-token');
+    if (!token) {
+        throw new Error('No authentication token found. Please login first.');
+    }
+
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`[dataService] ${options.method || 'GET'} ${url}`);
+    console.log("*************************************", token);
+
+    const config = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        ...options,
+    };
+
+    const response = await fetch(url, config);
+    const data = await response.json();
+    console.log('[dataService] Response:', response.status, data);
+
+    if (!response.ok) {
+        throw new Error(data.message || data.error || `API Error: ${response.status}`);
+    }
+
+    return data;
+}
+
+// Extract array data from various backend response structures
+function extractArrayData(data) {
+    // { data: { admins: [...] } } or { data: { users: [...] } } or { data: [...] }
+    if (data.data) {
+        if (Array.isArray(data.data)) return data.data;
+        if (data.data.admins) return data.data.admins;
+        if (data.data.users) return data.data.users;
+        if (data.data.requests) return data.data.requests;
+        if (data.data.members) return data.data.members;
+    }
+    // { admins: [...] } or { users: [...] }
+    if (data.admins) return data.admins;
+    if (data.users) return data.users;
+    if (data.members) return data.members;
+    // Already an array
+    if (Array.isArray(data)) return data;
+    // Return as-is
+    return data;
+}
+
+// GET City Admins - GET /admin/admins?role=City_Admin
+export async function getCityAdmins(search = '') {
+    let endpoint = '/admin/admins?role=City_Admin';
+    if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+    const data = await authApiRequest(endpoint);
+    return extractArrayData(data);
+}
+
+// GET Chapter Admins - GET /admin/admins?role=Chapter_Admin
+export async function getChapterAdmins(search = '') {
+    let endpoint = '/admin/admins?role=Chapter_Admin';
+    if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+    const data = await authApiRequest(endpoint);
+    return extractArrayData(data);
+}
+
+// DELETE Admin - DELETE /admin/admins/:id (removes admin, back to Member)
+export async function removeAdmin(adminId) {
+    console.log('[dataService] removeAdmin called for ID:', adminId);
+    const data = await authApiRequest(`/admin/admins/${adminId}`, { method: 'DELETE' });
+    return data;
+}
+
+// GET Members for assignment - GET /admin/users?membersOnly=true
+export async function getMembersForAssignment(search = '') {
+    let endpoint = '/admin/users?membersOnly=true';
+    if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+    const data = await authApiRequest(endpoint);
+    return extractArrayData(data);
+}
+
+// POST Assign Admin - POST /admin/assign-admin
+export async function assignAdmin(userId, role, cityId, chapterId = null) {
+    console.log('[dataService] assignAdmin called:', { userId, role, cityId, chapterId });
+    const body = { userId, role, cityId };
+    if (chapterId) body.chapterId = chapterId;
+    const data = await authApiRequest('/admin/assign-admin', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    return data;
+}
+
 // Helper function to get auth token from localStorage
 export function getAuthToken() {
     const token = localStorage.getItem('mib-admin-token');
@@ -249,6 +346,63 @@ export async function approvePendingRequest(requestId) {
     }
 }
 
+// ==========================================
+// Chapter Management - Connected to backend
+// ==========================================
+
+// GET Pending Chapters - GET /chapters/pending?status=Pending
+export async function getPendingChapters() {
+    console.log('[dataService] getPendingChapters called');
+    try {
+        const data = await authApiRequest('/chapters/pending?status=Pending');
+        console.log('[dataService] Pending chapters response:', data);
+
+        // Handle various response structures
+        // Backend returns: { success: true, data: { requests: [...], count: N } }
+        if (data.data && data.data.requests) return data.data.requests;
+        if (data.data && data.data.chapters) return data.data.chapters;
+        if (data.data && Array.isArray(data.data)) return data.data;
+        if (data.requests) return data.requests;
+        if (data.chapters) return data.chapters;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching pending chapters:', error);
+        throw error;
+    }
+}
+
+// POST Approve Chapter - POST /chapters/:id/approve
+export async function approveChapter(chapterId) {
+    console.log('[dataService] approveChapter called for ID:', chapterId);
+    try {
+        const data = await authApiRequest(`/chapters/${chapterId}/approve`, {
+            method: 'POST',
+        });
+        console.log('[dataService] Approve chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error approving chapter:', error);
+        throw error;
+    }
+}
+
+// POST Reject Chapter - POST /chapters/:id/reject
+export async function rejectChapter(chapterId, reason) {
+    console.log('[dataService] rejectChapter called for ID:', chapterId, 'reason:', reason);
+    try {
+        const data = await authApiRequest(`/chapters/${chapterId}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+        console.log('[dataService] Reject chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error rejecting chapter:', error);
+        throw error;
+    }
+}
+
 export async function denyPendingRequest(requestId, reason = 'Registration denied by administrator.') {
     console.log('[dataService] denyPendingRequest called for ID:', requestId);
 
@@ -282,6 +436,126 @@ export async function denyPendingRequest(requestId, reason = 'Registration denie
         return data;
     } catch (error) {
         console.error('[dataService] Error denying request:', error);
+        throw error;
+    }
+}
+
+// ==========================================
+// Reports Management - Connected to backend
+// ==========================================
+
+// GET All Reports (Super Admin) - GET /reports?city=
+export async function getEventReports(cityFilter = null) {
+    console.log('[dataService] getEventReports called, cityFilter:', cityFilter);
+    let endpoint = '/reports';
+    if (cityFilter) {
+        endpoint += `?city=${encodeURIComponent(cityFilter)}`;
+    }
+    const data = await authApiRequest(endpoint);
+    console.log('[dataService] Event reports response:', data);
+    // Handle various response shapes
+    if (data.data?.reports) return data.data.reports;
+    if (data.reports) return data.reports;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return data;
+}
+
+// GET Single Report (Super Admin) - GET /reports/:id
+export async function getReportById(reportId) {
+    console.log('[dataService] getReportById called for ID:', reportId);
+    const data = await authApiRequest(`/reports/${reportId}`);
+    console.log('[dataService] Single report response:', data);
+    return data.data?.report || data.report || data.data || data;
+}
+
+// DELETE Report (Super Admin) - DELETE /reports/:id
+export async function deleteEventReport(reportId) {
+    console.log('[dataService] deleteEventReport called for ID:', reportId);
+    const data = await authApiRequest(`/reports/${reportId}`, { method: 'DELETE' });
+    console.log('[dataService] Delete report response:', data);
+    return data;
+}
+
+// ==========================================
+// Uploaded Events Management - Connected to backend
+// ==========================================
+
+// GET All Uploaded Events - GET /events
+export async function getUploadedEvents() {
+    console.log('[dataService] getUploadedEvents called');
+    const data = await authApiRequest('/events/all');
+    console.log('[dataService] Uploaded events response:', data);
+    // Handle various response shapes
+    console.log("---------------------------------------------------\n", data.data.events);
+
+    if (data.data?.events) return data.data.events;
+    if (data.events) return data.events;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return data;
+}
+
+// DELETE Uploaded Event - DELETE /events/:id
+export async function deleteUploadedEvent(eventId) {
+    console.log('[dataService] deleteUploadedEvent called for ID:', eventId);
+    const data = await authApiRequest(`/events/${eventId}`, { method: 'DELETE' });
+    console.log('[dataService] Delete event response:', data);
+    return data;
+}
+
+// ==========================================
+// Member Transfer Requests - Connected to backend
+// ==========================================
+
+// GET Pending Transfer Requests - GET /transfers/pending?status=Pending
+export async function getPendingTransfers() {
+    console.log('[dataService] getPendingTransfers called');
+    try {
+        const data = await authApiRequest('/transfers/pending?status=Pending');
+        console.log('[dataService] Pending transfers response:', data);
+
+        // Backend returns: { success: true, data: { requests: [...], count: N } }
+        if (data.data && data.data.requests) return data.data.requests;
+        if (data.data && data.data.transfers) return data.data.transfers;
+        if (data.data && Array.isArray(data.data)) return data.data;
+        if (data.requests) return data.requests;
+        if (data.transfers) return data.transfers;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching pending transfers:', error);
+        throw error;
+    }
+}
+
+// POST Approve Transfer - POST /transfers/:id/approve
+export async function approveTransfer(transferId) {
+    console.log('[dataService] approveTransfer called for ID:', transferId);
+    try {
+        const data = await authApiRequest(`/transfers/${transferId}/approve`, {
+            method: 'POST',
+        });
+        console.log('[dataService] Approve transfer response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error approving transfer:', error);
+        throw error;
+    }
+}
+
+// POST Reject Transfer - POST /transfers/:id/reject
+export async function rejectTransfer(transferId, reason) {
+    console.log('[dataService] rejectTransfer called for ID:', transferId, 'reason:', reason);
+    try {
+        const data = await authApiRequest(`/transfers/${transferId}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+        console.log('[dataService] Reject transfer response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error rejecting transfer:', error);
         throw error;
     }
 }

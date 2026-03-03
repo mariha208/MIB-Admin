@@ -1,4 +1,4 @@
-import { X, Building2, MapPin } from 'lucide-react';
+import { X, Building2, MapPin, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ControlFormModal({ isOpen, onClose, onSubmit, cities = [] }) {
@@ -178,9 +178,13 @@ export default function ControlFormModal({ isOpen, onClose, onSubmit, cities = [
                             </div>
                         )}
 
-                        <div className="modal-footer">
-                            <button type="button" className="outline-btn" style={{ marginRight: 'auto' }} onClick={() => setSelection(null)}>Back</button>
-                            <button type="submit" className="submit-btn primary-btn">Apply Controls</button>
+                        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="back-btn-container" style={{ marginBottom: 0 }}>
+                                <button type="button" className="back-btn" onClick={() => setSelection(null)}>
+                                    <ArrowLeft size={18} /> Back
+                                </button>
+                            </div>
+                            <button type="submit" className="submit-btn primary-btn" style={{ marginLeft: 'auto' }}>Apply Controls</button>
                         </div>
                     </form>
                 )}
