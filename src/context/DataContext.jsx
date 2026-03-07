@@ -4,7 +4,9 @@ import {
     getCityAdmins, getChapterAdmins, removeAdmin, getMembersForAssignment, assignAdmin,
     getPendingChapters, approveChapter, rejectChapter,
     getEventReports, getReportById, deleteEventReport,
-    getPendingTransfers, approveTransfer, rejectTransfer
+    getPendingTransfers, approveTransfer, rejectTransfer,
+    getSuperAdminSummary, getSuperAdminBusiness, getSuperAdminReferrals,
+    getSuperAdminOneToOne, getSuperAdminVisitors
 } from '../services/dataService';
 
 // Initial mock data - this will be replaced with API calls
@@ -102,6 +104,14 @@ export function DataProvider({ children }) {
     const [selectedReport, setSelectedReport] = useState(null);
     const [reportsLoading, setReportsLoading] = useState(false);
     const [chaptersLoading, setChaptersLoading] = useState(false);
+
+    // Super Admin Access state — real data from backend
+    const [superAdminSummary, setSuperAdminSummary] = useState(null);
+    const [superAdminBusiness, setSuperAdminBusiness] = useState(null);
+    const [superAdminReferrals, setSuperAdminReferrals] = useState(null);
+    const [superAdminOneToOne, setSuperAdminOneToOne] = useState(null);
+    const [superAdminVisitors, setSuperAdminVisitors] = useState(null);
+    const [superAdminLoading, setSuperAdminLoading] = useState(false);
 
     // Simulated API fetch - replace with real API calls
     const fetchData = async () => {
@@ -467,6 +477,79 @@ export function DataProvider({ children }) {
     };
 
     // ==========================================
+    // Super Admin Access Functions
+    // ==========================================
+
+    // Fetch the all-in-one summary (populates dashboard stats)
+    const fetchSuperAdminSummary = async () => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) {
+            console.warn('[DataContext] No token, skipping super admin summary fetch');
+            return;
+        }
+        setSuperAdminLoading(true);
+        try {
+            const summaryData = await getSuperAdminSummary();
+            console.log('[DataContext] Fetched super admin summary:', summaryData);
+            setSuperAdminSummary(summaryData);
+
+            // Also update the dashboard stats from the grand totals
+            if (summaryData?.grandTotal) {
+                setData(prev => ({
+                    ...prev,
+                    stats: {
+                        totalBusiness: summaryData.grandTotal.business || 0,
+                        totalReferrals: summaryData.grandTotal.referrals || 0,
+                        total121: summaryData.grandTotal.oneToOne || 0,
+                        totalVisitors: summaryData.grandTotal.visitors || 0,
+                    }
+                }));
+            }
+        } catch (err) {
+            console.error('[DataContext] Failed to fetch super admin summary:', err);
+            setError(err.message);
+        } finally {
+            setSuperAdminLoading(false);
+        }
+    };
+
+    // Fetch per-metric detailed data (cities → chapters → users)
+    const fetchSuperAdminMetric = async (metric) => {
+        const token = localStorage.getItem('mib-admin-token');
+        if (!token) return;
+        setSuperAdminLoading(true);
+        try {
+            let result;
+            switch (metric) {
+                case 'business':
+                    result = await getSuperAdminBusiness();
+                    setSuperAdminBusiness(result);
+                    break;
+                case 'referrals':
+                    result = await getSuperAdminReferrals();
+                    setSuperAdminReferrals(result);
+                    break;
+                case 'one-to-one':
+                    result = await getSuperAdminOneToOne();
+                    setSuperAdminOneToOne(result);
+                    break;
+                case 'visitors':
+                    result = await getSuperAdminVisitors();
+                    setSuperAdminVisitors(result);
+                    break;
+                default:
+                    console.warn('[DataContext] Unknown super admin metric:', metric);
+            }
+            console.log(`[DataContext] Fetched super admin ${metric}:`, result);
+        } catch (err) {
+            console.error(`[DataContext] Failed to fetch super admin ${metric}:`, err);
+            setError(err.message);
+        } finally {
+            setSuperAdminLoading(false);
+        }
+    };
+
+    // ==========================================
     // Reports Management Functions
     // ==========================================
 
@@ -593,6 +676,8 @@ export function DataProvider({ children }) {
                 // Also fetch pending chapter and transfer requests
                 await fetchPendingChapterRequests();
                 await fetchPendingTransferRequests();
+                // Fetch super admin summary to populate dashboard stats from real data
+                await fetchSuperAdminSummary();
             } else {
                 console.warn('[DataContext] WARNING: No token found in login response! Pending requests will not work.');
             }
@@ -624,6 +709,8 @@ export function DataProvider({ children }) {
             fetchPendingRequests();
             fetchPendingChapterRequests();
             fetchPendingTransferRequests();
+            // Fetch super admin summary to populate real dashboard stats
+            fetchSuperAdminSummary();
         } else {
             console.log('[DataContext] No token found, skipping pending requests fetch');
         }
@@ -678,6 +765,15 @@ export function DataProvider({ children }) {
             fetchReports,
             fetchReportById,
             deleteReport,
+            // Super Admin Access data
+            superAdminSummary,
+            superAdminBusiness,
+            superAdminReferrals,
+            superAdminOneToOne,
+            superAdminVisitors,
+            superAdminLoading,
+            fetchSuperAdminSummary,
+            fetchSuperAdminMetric,
         }}>
             {children}
         </DataContext.Provider>

@@ -559,3 +559,74 @@ export async function rejectTransfer(transferId, reason) {
         throw error;
     }
 }
+
+// ==========================================
+// Super Admin Access — All cities → all chapters → per-user stats
+// ==========================================
+
+// GET Super Admin Summary (all 4 metrics in one call)
+// Returns: { grandTotal: { business, referrals, oneToOne, visitors }, cities: [...] }
+export async function getSuperAdminSummary() {
+    console.log('[dataService] getSuperAdminSummary called');
+    try {
+        const data = await authApiRequest('/super-admin-access/summary');
+        console.log('[dataService] Super admin summary response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching super admin summary:', error);
+        throw error;
+    }
+}
+
+// GET Super Admin Business — All cities → all chapters → per-user business taken
+// Returns: { grandTotal, cities: [{ cityId, cityName, cityTotal, chapters: [{ ..., users }] }] }
+export async function getSuperAdminBusiness() {
+    console.log('[dataService] getSuperAdminBusiness called');
+    try {
+        const data = await authApiRequest('/super-admin-access/business');
+        console.log('[dataService] Super admin business response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching super admin business:', error);
+        throw error;
+    }
+}
+
+// GET Super Admin Referrals — All cities → all chapters → per-user referral counts
+export async function getSuperAdminReferrals() {
+    console.log('[dataService] getSuperAdminReferrals called');
+    try {
+        const data = await authApiRequest('/super-admin-access/referrals');
+        console.log('[dataService] Super admin referrals response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching super admin referrals:', error);
+        throw error;
+    }
+}
+
+// GET Super Admin One-to-One — All cities → all chapters → per-user 1-to-1 meeting counts
+export async function getSuperAdminOneToOne() {
+    console.log('[dataService] getSuperAdminOneToOne called');
+    try {
+        const data = await authApiRequest('/super-admin-access/one-to-one');
+        console.log('[dataService] Super admin one-to-one response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching super admin one-to-one:', error);
+        throw error;
+    }
+}
+
+// GET Super Admin Visitors — All cities → all chapters → per-chapter visitor totals
+export async function getSuperAdminVisitors() {
+    console.log('[dataService] getSuperAdminVisitors called');
+    try {
+        const data = await authApiRequest('/super-admin-access/visitors');
+        console.log('[dataService] Super admin visitors response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching super admin visitors:', error);
+        throw error;
+    }
+}
