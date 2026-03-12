@@ -1,7 +1,7 @@
 // Data Service - Bridge between Frontend and Backend
 // This connects to the actual backend API
 
-const API_BASE_URL = '/api/v1'; // Using versioned API endpoint
+const API_BASE_URL = 'https://mib-backend.mibforindia.workers.dev/api/v1'; // Using versioned API endpoint
 
 // Helper function for API requests
 async function apiRequest(endpoint, options = {}) {
