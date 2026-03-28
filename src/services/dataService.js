@@ -670,3 +670,165 @@ export async function getSuperAdminVisitors() {
         throw error;
     }
 }
+
+// ==========================================
+// City & Chapter Management — Super Admin
+// ==========================================
+
+// GET All Cities - GET /admin/cities
+export async function getAdminCities() {
+    console.log('[dataService] getAdminCities called');
+    try {
+        const data = await authApiRequest('/admin/cities');
+        console.log('[dataService] Admin cities response:', data);
+        if (data.data?.cities) return data.data.cities;
+        if (data.cities) return data.cities;
+        if (Array.isArray(data.data)) return data.data;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching admin cities:', error);
+        throw error;
+    }
+}
+
+// POST Create City - POST /admin/cities
+// Body: { cityName, state?, country? }
+export async function createCity(cityData) {
+    console.log('[dataService] createCity called:', cityData);
+    try {
+        const data = await authApiRequest('/admin/cities', {
+            method: 'POST',
+            body: JSON.stringify(cityData),
+        });
+        console.log('[dataService] Create city response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error creating city:', error);
+        throw error;
+    }
+}
+
+// GET All Chapters - GET /admin/chapters?cityId=xxx
+export async function getAdminChapters(cityId = '') {
+    console.log('[dataService] getAdminChapters called, cityId:', cityId);
+    try {
+        let endpoint = '/admin/chapters';
+        if (cityId) endpoint += `?cityId=${encodeURIComponent(cityId)}`;
+        const data = await authApiRequest(endpoint);
+        console.log('[dataService] Admin chapters response:', data);
+        if (data.data?.chapters) return data.data.chapters;
+        if (data.chapters) return data.chapters;
+        if (Array.isArray(data.data)) return data.data;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching admin chapters:', error);
+        throw error;
+    }
+}
+
+// GET City by ID - GET /admin/cities/:cityId
+export async function getCityById(cityId) {
+    console.log('[dataService] getCityById called:', cityId);
+    try {
+        const data = await authApiRequest(`/admin/cities/${cityId}`);
+        console.log('[dataService] City by ID response:', data);
+        return data.data?.city || data.city || data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching city:', error);
+        throw error;
+    }
+}
+
+// PUT Update City - PUT /admin/cities/:cityId
+export async function updateCity(cityId, cityData) {
+    console.log('[dataService] updateCity called:', cityId, cityData);
+    try {
+        const data = await authApiRequest(`/admin/cities/${cityId}`, {
+            method: 'PUT',
+            body: JSON.stringify(cityData),
+        });
+        console.log('[dataService] Update city response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error updating city:', error);
+        throw error;
+    }
+}
+
+// DELETE City - DELETE /admin/cities/:cityId
+export async function deleteCity(cityId) {
+    console.log('[dataService] deleteCity called:', cityId);
+    try {
+        const data = await authApiRequest(`/admin/cities/${cityId}`, {
+            method: 'DELETE',
+        });
+        console.log('[dataService] Delete city response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error deleting city:', error);
+        throw error;
+    }
+}
+
+// POST Create Chapter - POST /admin/chapters
+// Body: { cityId, chapterName, description?, meetingDay?, meetingTime?, venueAddress? }
+export async function createNewChapter(chapterData) {
+    console.log('[dataService] createNewChapter called:', chapterData);
+    try {
+        const data = await authApiRequest('/admin/chapters', {
+            method: 'POST',
+            body: JSON.stringify(chapterData),
+        });
+        console.log('[dataService] Create chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error creating chapter:', error);
+        throw error;
+    }
+}
+
+// GET Chapter by ID - GET /admin/chapters/:chapterId
+export async function getChapterById(chapterId) {
+    console.log('[dataService] getChapterById called:', chapterId);
+    try {
+        const data = await authApiRequest(`/admin/chapters/${chapterId}`);
+        console.log('[dataService] Chapter by ID response:', data);
+        return data.data?.chapter || data.chapter || data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching chapter:', error);
+        throw error;
+    }
+}
+
+// PUT Update Chapter - PUT /admin/chapters/:chapterId
+export async function updateChapter(chapterId, chapterData) {
+    console.log('[dataService] updateChapter called:', chapterId, chapterData);
+    try {
+        const data = await authApiRequest(`/admin/chapters/${chapterId}`, {
+            method: 'PUT',
+            body: JSON.stringify(chapterData),
+        });
+        console.log('[dataService] Update chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error updating chapter:', error);
+        throw error;
+    }
+}
+
+// DELETE Chapter - DELETE /admin/chapters/:chapterId
+export async function deleteChapter(chapterId) {
+    console.log('[dataService] deleteChapter called:', chapterId);
+    try {
+        const data = await authApiRequest(`/admin/chapters/${chapterId}`, {
+            method: 'DELETE',
+        });
+        console.log('[dataService] Delete chapter response:', data);
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error deleting chapter:', error);
+        throw error;
+    }
+}

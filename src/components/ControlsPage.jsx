@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText, CalendarCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText, CalendarCheck, MapPin, BookOpen } from 'lucide-react';
 import ControlFormModal from './ControlFormModal';
-import { getEventReports, deleteEventReport, getUploadedEvents, deleteUploadedEvent, createUploadedEvent, getCitiesForDropdown } from '../services/dataService';
+import { getEventReports, deleteEventReport, getUploadedEvents, deleteUploadedEvent, createUploadedEvent, getCitiesForDropdown, createCity, createNewChapter, getAdminCities, getAdminChapters, deleteCity, updateCity, deleteChapter, updateChapter } from '../services/dataService';
 
 const MOCK_HISTORY = [
     { id: 2, type: 'City', giver: 'Admin', givenTo: 'Mumbai Lead', date: '19-Jan-2026', level: 'Mumbai', password: 'Mum#Lead$25' },
@@ -15,6 +15,8 @@ const CONTROL_OPTIONS = [
     { id: 'weekly', label: 'Weekly Reports', icon: Calendar },
     { id: 'upload', label: 'Upload Events', icon: Upload },
     { id: 'submitted', label: 'Submitted Reports', icon: FileText },
+    { id: 'addCity', label: 'Add New City', icon: MapPin },
+    { id: 'addChapter', label: 'Add New Chapter', icon: BookOpen },
 ];
 
 const CITIES = [
@@ -107,6 +109,30 @@ export default function ControlsPage() {
     const [uploadSubmitting, setUploadSubmitting] = useState(false);
     const [citiesList, setCitiesList] = useState([]);
 
+    // Add New City form state
+    const [cityFormData, setCityFormData] = useState({ cityName: '', state: '', country: '' });
+    const [citySubmitting, setCitySubmitting] = useState(false);
+
+    // Add New Chapter form state
+    const [chapterFormData, setChapterFormData] = useState({ chapterName: '', cityId: '', description: '', meetingDay: '', meetingTime: '', venueAddress: '' });
+    const [chapterSubmitting, setChapterSubmitting] = useState(false);
+    const [adminCitiesList, setAdminCitiesList] = useState([]);
+
+    // Existing cities list for management (shown under Add New City)
+    const [existingCities, setExistingCities] = useState([]);
+    const [citiesLoading, setCitiesLoading] = useState(false);
+
+    // Existing chapters list for management (shown under Add New Chapter)
+    const [existingChapters, setExistingChapters] = useState([]);
+    const [chaptersLoading, setChaptersLoading] = useState(false);
+    const [chaptersFilterCityId, setChaptersFilterCityId] = useState('');
+
+    // Edit modal state
+    const [editingCity, setEditingCity] = useState(null);
+    const [editCityData, setEditCityData] = useState({ cityName: '', state: '', country: '' });
+    const [editingChapter, setEditingChapter] = useState(null);
+    const [editChapterData, setEditChapterData] = useState({ chapterName: '', description: '', meetingDay: '', meetingTime: '', venueAddress: '' });
+
     // Submitted reports state (from API)
     const [submittedReports, setSubmittedReports] = useState([]);
     const [reportsLoading, setReportsLoading] = useState(false);
@@ -161,6 +187,115 @@ export default function ControlsPage() {
                 .catch((err) => console.error('Failed to fetch cities:', err));
         }
     }, [view]);
+
+    // Fetch admin cities for addChapter view
+    useEffect(() => {
+        if (view === 'addChapter') {
+            getAdminCities()
+                .then((cities) => setAdminCitiesList(Array.isArray(cities) ? cities : []))
+                .catch((err) => console.error('Failed to fetch admin cities:', err));
+        }
+    }, [view]);
+
+    // Fetch existing cities when addCity view loads
+    const fetchExistingCities = () => {
+        setCitiesLoading(true);
+        getAdminCities()
+            .then((cities) => {
+                setExistingCities(Array.isArray(cities) ? cities : []);
+                setCitiesLoading(false);
+            })
+            .catch((err) => {
+                console.error('Failed to fetch existing cities:', err);
+                setCitiesLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        if (view === 'addCity') {
+            fetchExistingCities();
+        }
+    }, [view]);
+
+    // Fetch existing chapters when addChapter view loads
+    const fetchExistingChapters = (filterCityId = '') => {
+        setChaptersLoading(true);
+        getAdminChapters(filterCityId)
+            .then((chapters) => {
+                setExistingChapters(Array.isArray(chapters) ? chapters : []);
+                setChaptersLoading(false);
+            })
+            .catch((err) => {
+                console.error('Failed to fetch existing chapters:', err);
+                setChaptersLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        if (view === 'addChapter') {
+            fetchExistingChapters(chaptersFilterCityId);
+        }
+    }, [view, chaptersFilterCityId]);
+
+    // Handle delete city
+    const handleDeleteCity = async (cityId, cityName) => {
+        if (!window.confirm(`Are you sure you want to delete "${cityName}"? This will fail if chapters or users are still linked to this city.`)) return;
+        try {
+            await deleteCity(cityId);
+            alert(`City "${cityName}" deleted successfully!`);
+            setExistingCities((prev) => prev.filter((c) => (c._id || c.id) !== cityId));
+        } catch (err) {
+            alert('Failed to delete city: ' + err.message);
+        }
+    };
+
+    // Handle update city
+    const handleUpdateCity = async () => {
+        if (!editCityData.cityName.trim()) { alert('City name is required'); return; }
+        const cityId = editingCity._id || editingCity.id;
+        try {
+            const payload = { cityName: editCityData.cityName.trim() };
+            if (editCityData.state.trim()) payload.state = editCityData.state.trim();
+            if (editCityData.country.trim()) payload.country = editCityData.country.trim();
+            await updateCity(cityId, payload);
+            alert(`City updated successfully!`);
+            setEditingCity(null);
+            fetchExistingCities();
+        } catch (err) {
+            alert('Failed to update city: ' + err.message);
+        }
+    };
+
+    // Handle delete chapter
+    const handleDeleteChapter = async (chapterId, chapterName) => {
+        if (!window.confirm(`Are you sure you want to delete "${chapterName}"? This will clean up admins, users, and pending requests linked to this chapter.`)) return;
+        try {
+            await deleteChapter(chapterId);
+            alert(`Chapter "${chapterName}" deleted successfully!`);
+            setExistingChapters((prev) => prev.filter((c) => (c._id || c.id) !== chapterId));
+        } catch (err) {
+            alert('Failed to delete chapter: ' + err.message);
+        }
+    };
+
+    // Handle update chapter
+    const handleUpdateChapter = async () => {
+        if (!editChapterData.chapterName.trim()) { alert('Chapter name is required'); return; }
+        const chapterId = editingChapter._id || editingChapter.id;
+        try {
+            const payload = { chapterName: editChapterData.chapterName.trim() };
+            if (editChapterData.description.trim()) payload.description = editChapterData.description.trim();
+            if (editChapterData.meetingDay.trim()) payload.meetingDay = editChapterData.meetingDay.trim();
+            if (editChapterData.meetingTime.trim()) payload.meetingTime = editChapterData.meetingTime.trim();
+            if (editChapterData.venueAddress.trim()) payload.venueAddress = editChapterData.venueAddress.trim();
+            await updateChapter(chapterId, payload);
+            alert(`Chapter updated successfully!`);
+            setEditingChapter(null);
+            fetchExistingChapters(chaptersFilterCityId);
+        } catch (err) {
+            alert('Failed to update chapter: ' + err.message);
+        }
+    };
 
     const handleDeleteReport = async (reportId) => {
         if (!window.confirm('Are you sure you want to delete this report?')) return;
@@ -1501,6 +1636,580 @@ export default function ControlsPage() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ========== Add New City View ==========
+        if (view === 'addCity') {
+            const inputStyle = { width: '100%', padding: '0.9rem 0.9rem 0.9rem 2.75rem', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', transition: 'all 0.2s ease', outline: 'none' };
+            const labelStyle = { display: 'block', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: '600', fontSize: '0.9rem', letterSpacing: '0.3px' };
+            const focusGreen = (e) => { e.target.style.borderColor = '#43E97B'; e.target.style.boxShadow = '0 0 0 3px rgba(67, 233, 123, 0.15)'; };
+            const blurReset = (e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; };
+
+            return (
+                <div className="users-page animate-fade-in">
+                    <div className="back-btn-container">
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
+                            <ArrowLeft size={18} />
+                            Back to Control Panel
+                        </button>
+                    </div>
+
+                    {/* Premium Header */}
+                    <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '72px', height: '72px', background: 'linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)', borderRadius: '20px', marginBottom: '1.25rem', boxShadow: '0 8px 32px rgba(67, 233, 123, 0.3)' }}>
+                            <MapPin size={36} color="white" />
+                        </div>
+                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Add New City</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto' }}>Create a new city for member management and events.</p>
+                    </div>
+
+                    <div style={{ maxWidth: '520px', margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border-color)', padding: '2.5rem', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!cityFormData.cityName.trim()) { alert('Please enter a city name'); return; }
+                            setCitySubmitting(true);
+                            try {
+                                const payload = { cityName: cityFormData.cityName.trim() };
+                                if (cityFormData.state.trim()) payload.state = cityFormData.state.trim();
+                                if (cityFormData.country.trim()) payload.country = cityFormData.country.trim();
+                                await createCity(payload);
+                                alert(`City "${cityFormData.cityName.trim()}" created successfully!`);
+                                setCityFormData({ cityName: '', state: '', country: '' });
+                                fetchExistingCities(); // refresh the list
+                            } catch (err) {
+                                console.error('[ControlsPage] Failed to create city:', err);
+                                alert('Failed to create city: ' + err.message);
+                            } finally {
+                                setCitySubmitting(false);
+                            }
+                        }}>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={labelStyle}>City Name *</label>
+                                <div style={{ position: 'relative' }}>
+                                    <MapPin size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Ahmedabad, Mumbai, Surat"
+                                        required
+                                        value={cityFormData.cityName}
+                                        onChange={(e) => setCityFormData(prev => ({ ...prev, cityName: e.target.value }))}
+                                        style={inputStyle}
+                                        onFocus={focusGreen}
+                                        onBlur={blurReset}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={labelStyle}>State <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(optional)</span></label>
+                                <div style={{ position: 'relative' }}>
+                                    <MapPin size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Gujarat, Maharashtra"
+                                        value={cityFormData.state}
+                                        onChange={(e) => setCityFormData(prev => ({ ...prev, state: e.target.value }))}
+                                        style={inputStyle}
+                                        onFocus={focusGreen}
+                                        onBlur={blurReset}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '2rem' }}>
+                                <label style={labelStyle}>Country <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(optional)</span></label>
+                                <div style={{ position: 'relative' }}>
+                                    <MapPin size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. India"
+                                        value={cityFormData.country}
+                                        onChange={(e) => setCityFormData(prev => ({ ...prev, country: e.target.value }))}
+                                        style={inputStyle}
+                                        onFocus={focusGreen}
+                                        onBlur={blurReset}
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={citySubmitting}
+                                style={{
+                                    width: '100%',
+                                    padding: '1rem',
+                                    fontSize: '1.05rem',
+                                    fontWeight: '600',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    cursor: citySubmitting ? 'not-allowed' : 'pointer',
+                                    background: citySubmitting ? 'var(--border-color)' : 'linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)',
+                                    color: 'white',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: citySubmitting ? 'none' : '0 4px 15px rgba(67, 233, 123, 0.35)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    letterSpacing: '0.3px',
+                                }}
+                                onMouseEnter={(e) => { if (!citySubmitting) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                            >
+                                {citySubmitting ? (
+                                    <><div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Creating...</>
+                                ) : (
+                                    <><Plus size={20} /> Create City</>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Existing Cities Table */}
+                    <div style={{ maxWidth: '800px', margin: '3rem auto 0' }}>
+                        <h3 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <MapPin size={20} style={{ color: '#43E97B' }} /> Existing Cities
+                            <span style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '4px 10px', borderRadius: '12px', marginLeft: '0.5rem' }}>
+                                {existingCities.length}
+                            </span>
+                        </h3>
+
+                        {citiesLoading ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTop: '3px solid #43E97B', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                                Loading cities...
+                            </div>
+                        ) : existingCities.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+                                <MapPin size={48} style={{ opacity: 0.15, marginBottom: '1rem', color: '#43E97B' }} />
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>No cities created yet. Create one above!</p>
+                            </div>
+                        ) : (
+                            <div className="table-container shadow-lg" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>CITY NAME</th>
+                                            <th>STATE</th>
+                                            <th>COUNTRY</th>
+                                            <th>CHAPTERS</th>
+                                            <th>ACTIONS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {existingCities.map((city, index) => (
+                                            <tr key={city._id || city.id || index} style={{ animation: `fadeInUp 0.3s ease ${index * 0.05}s both` }}>
+                                                <td><span className="user-name">{city.cityName || city.name || '—'}</span></td>
+                                                <td style={{ color: 'var(--text-secondary)' }}>{city.state || '—'}</td>
+                                                <td style={{ color: 'var(--text-secondary)' }}>{city.country || '—'}</td>
+                                                <td>
+                                                    <span style={{ background: 'rgba(67, 233, 123, 0.1)', color: '#43E97B', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                        {city.chapterCount ?? city.chapters?.length ?? '—'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div className="action-buttons" style={{ display: 'flex', gap: '6px' }}>
+                                                        <button
+                                                            className="icon-btn edit"
+                                                            title="Edit City"
+                                                            onClick={() => {
+                                                                setEditingCity(city);
+                                                                setEditCityData({
+                                                                    cityName: city.cityName || city.name || '',
+                                                                    state: city.state || '',
+                                                                    country: city.country || ''
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            className="icon-btn delete"
+                                                            title="Delete City"
+                                                            onClick={() => handleDeleteCity(city._id || city.id, city.cityName || city.name)}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Edit City Modal */}
+                    {editingCity && (
+                        <div className="modal-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.7)' }} onClick={() => setEditingCity(null)}>
+                            <div className="modal-content animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', position: 'relative', borderRadius: '20px' }}>
+                                <button onClick={() => setEditingCity(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', zIndex: 1 }}>
+                                    <X size={22} />
+                                </button>
+                                <div style={{ padding: '2rem' }}>
+                                    <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Edit2 size={20} style={{ color: '#43E97B' }} /> Edit City
+                                    </h3>
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>City Name *</label>
+                                        <input type="text" value={editCityData.cityName} onChange={(e) => setEditCityData(prev => ({ ...prev, cityName: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                    </div>
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>State</label>
+                                        <input type="text" value={editCityData.state} onChange={(e) => setEditCityData(prev => ({ ...prev, state: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                    </div>
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Country</label>
+                                        <input type="text" value={editCityData.country} onChange={(e) => setEditCityData(prev => ({ ...prev, country: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                        <button onClick={() => setEditingCity(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                                        <button onClick={handleUpdateCity} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)', color: 'white', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(67, 233, 123, 0.3)' }}>Save Changes</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ========== Add New Chapter View ==========
+        if (view === 'addChapter') {
+            const inputStyle = { width: '100%', padding: '0.9rem 0.9rem 0.9rem 2.75rem', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', transition: 'all 0.2s ease', outline: 'none' };
+            const inputStyleNoIcon = { width: '100%', padding: '0.9rem', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', transition: 'all 0.2s ease', outline: 'none' };
+            const labelStyle = { display: 'block', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: '600', fontSize: '0.9rem', letterSpacing: '0.3px' };
+            const focusPurple = (e) => { e.target.style.borderColor = '#667EEA'; e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.15)'; };
+            const blurReset = (e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; };
+
+            return (
+                <div className="users-page animate-fade-in">
+                    <div className="back-btn-container">
+                        <button className="back-btn" onClick={() => setViewPersisted('list')}>
+                            <ArrowLeft size={18} />
+                            Back to Control Panel
+                        </button>
+                    </div>
+
+                    {/* Premium Header */}
+                    <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '72px', height: '72px', background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)', borderRadius: '20px', marginBottom: '1.25rem', boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)' }}>
+                            <BookOpen size={36} color="white" />
+                        </div>
+                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Add New Chapter</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto' }}>Create a new chapter under an existing city.</p>
+                    </div>
+
+                    <div style={{ maxWidth: '560px', margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border-color)', padding: '2.5rem', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!chapterFormData.chapterName.trim()) { alert('Please enter a chapter name'); return; }
+                            if (!chapterFormData.cityId) { alert('Please select a city'); return; }
+                            setChapterSubmitting(true);
+                            try {
+                                const payload = {
+                                    cityId: chapterFormData.cityId,
+                                    chapterName: chapterFormData.chapterName.trim(),
+                                };
+                                if (chapterFormData.description.trim()) payload.description = chapterFormData.description.trim();
+                                if (chapterFormData.meetingDay.trim()) payload.meetingDay = chapterFormData.meetingDay.trim();
+                                if (chapterFormData.meetingTime.trim()) payload.meetingTime = chapterFormData.meetingTime.trim();
+                                if (chapterFormData.venueAddress.trim()) payload.venueAddress = chapterFormData.venueAddress.trim();
+                                await createNewChapter(payload);
+                                alert(`Chapter "${chapterFormData.chapterName.trim()}" created successfully!`);
+                                setChapterFormData({ chapterName: '', cityId: '', description: '', meetingDay: '', meetingTime: '', venueAddress: '' });
+                                fetchExistingChapters(chaptersFilterCityId); // refresh the list
+                            } catch (err) {
+                                console.error('[ControlsPage] Failed to create chapter:', err);
+                                alert('Failed to create chapter: ' + err.message);
+                            } finally {
+                                setChapterSubmitting(false);
+                            }
+                        }}>
+                            {/* City Selection */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={labelStyle}>Select City *</label>
+                                <div style={{ position: 'relative' }}>
+                                    <MapPin size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                                    <select
+                                        required
+                                        value={chapterFormData.cityId}
+                                        onChange={(e) => setChapterFormData(prev => ({ ...prev, cityId: e.target.value }))}
+                                        style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', color: chapterFormData.cityId ? 'var(--text-primary)' : 'var(--text-muted)' }}
+                                        onFocus={focusPurple}
+                                        onBlur={blurReset}
+                                    >
+                                        <option value="">— Choose a city —</option>
+                                        {adminCitiesList.map((city) => (
+                                            <option key={city._id || city.id || city.cityId} value={city._id || city.id || city.cityId}>
+                                                {city.cityName || city.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronRight size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%) rotate(90deg)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                                </div>
+                                {adminCitiesList.length === 0 && (
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>Loading cities...</p>
+                                )}
+                            </div>
+
+                            {/* Chapter Name */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={labelStyle}>Chapter Name *</label>
+                                <div style={{ position: 'relative' }}>
+                                    <BookOpen size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Chapter 1, Chatpata, Dal Dal"
+                                        required
+                                        value={chapterFormData.chapterName}
+                                        onChange={(e) => setChapterFormData(prev => ({ ...prev, chapterName: e.target.value }))}
+                                        style={inputStyle}
+                                        onFocus={focusPurple}
+                                        onBlur={blurReset}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={labelStyle}>Description <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(optional)</span></label>
+                                <textarea
+                                    placeholder="Brief description of this chapter..."
+                                    rows="2"
+                                    value={chapterFormData.description}
+                                    onChange={(e) => setChapterFormData(prev => ({ ...prev, description: e.target.value }))}
+                                    style={{ ...inputStyleNoIcon, resize: 'vertical' }}
+                                    onFocus={focusPurple}
+                                    onBlur={blurReset}
+                                />
+                            </div>
+
+                            {/* Meeting Day & Time Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Meeting Day <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(opt)</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Wednesday"
+                                        value={chapterFormData.meetingDay}
+                                        onChange={(e) => setChapterFormData(prev => ({ ...prev, meetingDay: e.target.value }))}
+                                        style={inputStyleNoIcon}
+                                        onFocus={focusPurple}
+                                        onBlur={blurReset}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Meeting Time <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(opt)</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 7:00 PM"
+                                        value={chapterFormData.meetingTime}
+                                        onChange={(e) => setChapterFormData(prev => ({ ...prev, meetingTime: e.target.value }))}
+                                        style={inputStyleNoIcon}
+                                        onFocus={focusPurple}
+                                        onBlur={blurReset}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Venue Address */}
+                            <div style={{ marginBottom: '2rem' }}>
+                                <label style={labelStyle}>Venue Address <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(optional)</span></label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Grand Hyatt, Mumbai"
+                                    value={chapterFormData.venueAddress}
+                                    onChange={(e) => setChapterFormData(prev => ({ ...prev, venueAddress: e.target.value }))}
+                                    style={inputStyleNoIcon}
+                                    onFocus={focusPurple}
+                                    onBlur={blurReset}
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={chapterSubmitting}
+                                style={{
+                                    width: '100%',
+                                    padding: '1rem',
+                                    fontSize: '1.05rem',
+                                    fontWeight: '600',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    cursor: chapterSubmitting ? 'not-allowed' : 'pointer',
+                                    background: chapterSubmitting ? 'var(--border-color)' : 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                                    color: 'white',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: chapterSubmitting ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.35)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    letterSpacing: '0.3px',
+                                }}
+                                onMouseEnter={(e) => { if (!chapterSubmitting) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                            >
+                                {chapterSubmitting ? (
+                                    <><div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Creating...</>
+                                ) : (
+                                    <><Plus size={20} /> Create Chapter</>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Existing Chapters Table */}
+                    <div style={{ maxWidth: '900px', margin: '3rem auto 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                            <h3 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                <BookOpen size={20} style={{ color: '#667EEA' }} /> Existing Chapters
+                                <span style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '4px 10px', borderRadius: '12px', marginLeft: '0.5rem' }}>
+                                    {existingChapters.length}
+                                </span>
+                            </h3>
+                            <select
+                                value={chaptersFilterCityId}
+                                onChange={(e) => setChaptersFilterCityId(e.target.value)}
+                                style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.85rem', cursor: 'pointer', minWidth: '160px' }}
+                            >
+                                <option value="">All Cities</option>
+                                {adminCitiesList.map((city) => (
+                                    <option key={city._id || city.id || city.cityId} value={city._id || city.id || city.cityId}>
+                                        {city.cityName || city.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {chaptersLoading ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTop: '3px solid #667EEA', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                                Loading chapters...
+                            </div>
+                        ) : existingChapters.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+                                <BookOpen size={48} style={{ opacity: 0.15, marginBottom: '1rem', color: '#667EEA' }} />
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                                    {chaptersFilterCityId ? 'No chapters found for this city.' : 'No chapters created yet. Create one above!'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="table-container shadow-lg" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>CHAPTER NAME</th>
+                                            <th>CITY</th>
+                                            <th>MEETING DAY</th>
+                                            <th>MEETING TIME</th>
+                                            <th>MEMBERS</th>
+                                            <th>ACTIONS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {existingChapters.map((chapter, index) => (
+                                            <tr key={chapter._id || chapter.id || index} style={{ animation: `fadeInUp 0.3s ease ${index * 0.05}s both` }}>
+                                                <td>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span className="user-name">{chapter.chapterName || chapter.name || '—'}</span>
+                                                        {(chapter.description) && (
+                                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{chapter.description}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span style={{ background: 'rgba(102, 126, 234, 0.1)', color: '#667EEA', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                        {chapter.cityName || chapter.city?.name || chapter.city || '—'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ color: 'var(--text-secondary)' }}>{chapter.meetingDay || '—'}</td>
+                                                <td style={{ color: 'var(--text-secondary)' }}>{chapter.meetingTime || '—'}</td>
+                                                <td>
+                                                    <span style={{ background: 'rgba(67, 233, 123, 0.1)', color: '#43E97B', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600' }}>
+                                                        {chapter.memberCount ?? chapter.members?.length ?? '—'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div className="action-buttons" style={{ display: 'flex', gap: '6px' }}>
+                                                        <button
+                                                            className="icon-btn edit"
+                                                            title="Edit Chapter"
+                                                            onClick={() => {
+                                                                setEditingChapter(chapter);
+                                                                setEditChapterData({
+                                                                    chapterName: chapter.chapterName || chapter.name || '',
+                                                                    description: chapter.description || '',
+                                                                    meetingDay: chapter.meetingDay || '',
+                                                                    meetingTime: chapter.meetingTime || '',
+                                                                    venueAddress: chapter.venueAddress || ''
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            className="icon-btn delete"
+                                                            title="Delete Chapter"
+                                                            onClick={() => handleDeleteChapter(chapter._id || chapter.id, chapter.chapterName || chapter.name)}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Edit Chapter Modal */}
+                    {editingChapter && (
+                        <div className="modal-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.7)' }} onClick={() => setEditingChapter(null)}>
+                            <div className="modal-content animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', position: 'relative', borderRadius: '20px' }}>
+                                <button onClick={() => setEditingChapter(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', zIndex: 1 }}>
+                                    <X size={22} />
+                                </button>
+                                <div style={{ padding: '2rem' }}>
+                                    <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Edit2 size={20} style={{ color: '#667EEA' }} /> Edit Chapter
+                                    </h3>
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Chapter Name *</label>
+                                        <input type="text" value={editChapterData.chapterName} onChange={(e) => setEditChapterData(prev => ({ ...prev, chapterName: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                    </div>
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Description</label>
+                                        <textarea value={editChapterData.description} onChange={(e) => setEditChapterData(prev => ({ ...prev, description: e.target.value }))} rows="2" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem', resize: 'vertical' }} />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Meeting Day</label>
+                                            <input type="text" value={editChapterData.meetingDay} onChange={(e) => setEditChapterData(prev => ({ ...prev, meetingDay: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Meeting Time</label>
+                                            <input type="text" value={editChapterData.meetingTime} onChange={(e) => setEditChapterData(prev => ({ ...prev, meetingTime: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                        </div>
+                                    </div>
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Venue Address</label>
+                                        <input type="text" value={editChapterData.venueAddress} onChange={(e) => setEditChapterData(prev => ({ ...prev, venueAddress: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                        <button onClick={() => setEditingChapter(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                                        <button onClick={handleUpdateChapter} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)', color: 'white', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>Save Changes</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
