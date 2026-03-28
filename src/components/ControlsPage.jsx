@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit2, Trash2, ChevronRight, ArrowLeft, Key, BarChart3, Calendar, Upload, X, FileText, CalendarCheck } from 'lucide-react';
 import ControlFormModal from './ControlFormModal';
-import { getEventReports, deleteEventReport, getUploadedEvents, deleteUploadedEvent } from '../services/dataService';
+import { getEventReports, deleteEventReport, getUploadedEvents, deleteUploadedEvent, createUploadedEvent, getCitiesForDropdown } from '../services/dataService';
 
 const MOCK_HISTORY = [
     { id: 2, type: 'City', giver: 'Admin', givenTo: 'Mumbai Lead', date: '19-Jan-2026', level: 'Mumbai', password: 'Mum#Lead$25' },
@@ -94,6 +94,19 @@ export default function ControlsPage() {
     const [selectedCityForEvents, setSelectedCityForEvents] = useState(null);
     const [eventPhoto, setEventPhoto] = useState(null);
 
+    // Upload event form state
+    const [uploadFormData, setUploadFormData] = useState({
+        eventName: '',
+        eventDate: '',
+        fullAddress: '',
+        mapLink: '',
+        timing: '',
+        note: '',
+        registrationLink: '',
+    });
+    const [uploadSubmitting, setUploadSubmitting] = useState(false);
+    const [citiesList, setCitiesList] = useState([]);
+
     // Submitted reports state (from API)
     const [submittedReports, setSubmittedReports] = useState([]);
     const [reportsLoading, setReportsLoading] = useState(false);
@@ -137,6 +150,15 @@ export default function ControlsPage() {
                     setEventsError(err.message || 'Failed to load events');
                     setEventsLoading(false);
                 });
+        }
+    }, [view]);
+
+    // Fetch cities list for upload form (to resolve cityId)
+    useEffect(() => {
+        if (view === 'upload') {
+            getCitiesForDropdown()
+                .then((cities) => setCitiesList(Array.isArray(cities) ? cities : []))
+                .catch((err) => console.error('Failed to fetch cities:', err));
         }
     }, [view]);
 
@@ -1122,12 +1144,41 @@ export default function ControlsPage() {
                         </div>
 
                         <div style={{ maxWidth: '600px', margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '12px' }}>
-                            <form onSubmit={(e) => {
+                            <form onSubmit={async (e) => {
                                 e.preventDefault();
-                                alert('Event Uploaded Successfully!');
-                                setSelectedCityForUpload(null);
-                                setEventPhoto(null);
-                                setViewPersisted('list');
+                                setUploadSubmitting(true);
+                                try {
+                                    // Find the cityId from the fetched cities list
+                                    const matchedCity = citiesList.find(
+                                        c => (c.name || c.cityName || '').toLowerCase() === selectedCityForUpload.toLowerCase()
+                                    );
+                                    const cityId = matchedCity?.id || matchedCity?._id || matchedCity?.cityId || '';
+
+                                    const eventData = {
+                                        eventName: uploadFormData.eventName,
+                                        eventDate: uploadFormData.eventDate,
+                                        timing: uploadFormData.timing,
+                                        cityId: cityId,
+                                        fullAddress: uploadFormData.fullAddress,
+                                        mapLink: uploadFormData.mapLink,
+                                        note: uploadFormData.note,
+                                        registrationLink: uploadFormData.registrationLink,
+                                        eventPhoto: eventPhoto || '',
+                                    };
+
+                                    console.log('[ControlsPage] Submitting event:', eventData);
+                                    await createUploadedEvent(eventData);
+                                    alert('Event uploaded successfully!');
+                                    setUploadFormData({ eventName: '', eventDate: '', fullAddress: '', mapLink: '', timing: '', note: '', registrationLink: '' });
+                                    setEventPhoto(null);
+                                    setSelectedCityForUpload(null);
+                                    setViewPersisted('events'); // navigate to the events list to see the new event
+                                } catch (err) {
+                                    console.error('[ControlsPage] Failed to upload event:', err);
+                                    alert('Failed to upload event: ' + err.message);
+                                } finally {
+                                    setUploadSubmitting(false);
+                                }
                             }}>
                                 <div
                                     onClick={() => document.getElementById('event-photo-input').click()}
@@ -1213,6 +1264,8 @@ export default function ControlsPage() {
                                         type="text"
                                         placeholder="e.g. Fun fair"
                                         required
+                                        value={uploadFormData.eventName}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, eventName: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
@@ -1223,6 +1276,8 @@ export default function ControlsPage() {
                                         type="text"
                                         placeholder="e.g. 25 Jan, 2025"
                                         required
+                                        value={uploadFormData.eventDate}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, eventDate: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
@@ -1233,6 +1288,8 @@ export default function ControlsPage() {
                                         type="text"
                                         placeholder="e.g. TGB, Surat"
                                         required
+                                        value={uploadFormData.fullAddress}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, fullAddress: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
@@ -1242,6 +1299,8 @@ export default function ControlsPage() {
                                     <input
                                         type="url"
                                         placeholder="Paste Google Maps URL here"
+                                        value={uploadFormData.mapLink}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, mapLink: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
@@ -1252,6 +1311,8 @@ export default function ControlsPage() {
                                         type="text"
                                         placeholder="e.g. 5:00 to 9:00 pm"
                                         required
+                                        value={uploadFormData.timing}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, timing: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
@@ -1261,6 +1322,8 @@ export default function ControlsPage() {
                                     <textarea
                                         placeholder="Any special notes..."
                                         rows="3"
+                                        value={uploadFormData.note}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, note: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     ></textarea>
                                 </div>
@@ -1270,6 +1333,8 @@ export default function ControlsPage() {
                                     <input
                                         type="url"
                                         placeholder="https://forms.gle/..."
+                                        value={uploadFormData.registrationLink}
+                                        onChange={(e) => setUploadFormData(prev => ({ ...prev, registrationLink: e.target.value }))}
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                     />
                                 </div>
@@ -1277,9 +1342,10 @@ export default function ControlsPage() {
                                 <button
                                     type="submit"
                                     className="primary-btn"
-                                    style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
+                                    disabled={uploadSubmitting}
+                                    style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', opacity: uploadSubmitting ? 0.6 : 1, cursor: uploadSubmitting ? 'not-allowed' : 'pointer' }}
                                 >
-                                    Submit Event
+                                    {uploadSubmitting ? 'Uploading...' : 'Submit Event'}
                                 </button>
                             </form>
                         </div>

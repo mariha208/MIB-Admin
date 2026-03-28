@@ -504,6 +504,46 @@ export async function deleteUploadedEvent(eventId) {
     return data;
 }
 
+// POST Create Uploaded Event - POST /events
+// Super Admin must provide cityId in eventData; City Admin's city is auto-detected
+export async function createUploadedEvent(eventData) {
+    console.log('[dataService] createUploadedEvent called:', eventData);
+    const data = await authApiRequest('/events', {
+        method: 'POST',
+        body: JSON.stringify(eventData),
+    });
+    console.log('[dataService] Create event response:', data);
+    return data;
+}
+
+// PUT Update Uploaded Event - PUT /events/:id
+export async function updateUploadedEvent(eventId, eventData) {
+    console.log('[dataService] updateUploadedEvent called for ID:', eventId, eventData);
+    const data = await authApiRequest(`/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(eventData),
+    });
+    console.log('[dataService] Update event response:', data);
+    return data;
+}
+
+// GET Cities for dropdown (used in Upload Event form) - GET /public/cities
+export async function getCitiesForDropdown() {
+    console.log('[dataService] getCitiesForDropdown called');
+    try {
+        const data = await authApiRequest('/public/cities');
+        console.log('[dataService] Cities response:', data);
+        if (data.data?.cities) return data.data.cities;
+        if (data.cities) return data.cities;
+        if (Array.isArray(data.data)) return data.data;
+        if (Array.isArray(data)) return data;
+        return data;
+    } catch (error) {
+        console.error('[dataService] Error fetching cities:', error);
+        throw error;
+    }
+}
+
 // ==========================================
 // Member Transfer Requests - Connected to backend
 // ==========================================
