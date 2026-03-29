@@ -109,6 +109,10 @@ export default function ControlsPage() {
     const [uploadSubmitting, setUploadSubmitting] = useState(false);
     const [citiesList, setCitiesList] = useState([]);
 
+    // Dynamic cities fetched from the database for Event / Event Reports / Upload views
+    const [dbCities, setDbCities] = useState([]);
+    const [dbCitiesLoading, setDbCitiesLoading] = useState(false);
+
     // Add New City form state
     const [cityFormData, setCityFormData] = useState({ cityName: '', state: '', country: '' });
     const [citySubmitting, setCitySubmitting] = useState(false);
@@ -185,6 +189,41 @@ export default function ControlsPage() {
             getCitiesForDropdown()
                 .then((cities) => setCitiesList(Array.isArray(cities) ? cities : []))
                 .catch((err) => console.error('Failed to fetch cities:', err));
+        }
+    }, [view]);
+
+    // Fetch cities from the database for Event, Event Reports, and Upload views
+    useEffect(() => {
+        if (view === 'events' || view === 'event' || view === 'upload') {
+            setDbCitiesLoading(true);
+            getAdminCities()
+                .then((cities) => {
+                    const arr = Array.isArray(cities) ? cities : [];
+                    // Build gradient-mapped city objects from DB data
+                    const GRADIENT_PALETTE = [
+                        'linear-gradient(135deg, #FF6B6B 0%, #EE5D5D 100%)',
+                        'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
+                        'linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)',
+                        'linear-gradient(135deg, #FA709A 0%, #FEE140 100%)',
+                        'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+                        'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)',
+                        'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+                        'linear-gradient(135deg, #0acffe 0%, #495aff 100%)',
+                    ];
+                    const mapped = arr.map((c, i) => ({
+                        name: c.cityName || c.name || 'Unknown',
+                        id: c._id || c.id || c.cityId,
+                        gradient: GRADIENT_PALETTE[i % GRADIENT_PALETTE.length],
+                    }));
+                    setDbCities(mapped);
+                    setDbCitiesLoading(false);
+                })
+                .catch((err) => {
+                    console.error('Failed to fetch DB cities:', err);
+                    setDbCitiesLoading(false);
+                });
         }
     }, [view]);
 
@@ -378,13 +417,13 @@ export default function ControlsPage() {
                 'linear-gradient(135deg, #0acffe 0%, #495aff 100%)',
             ];
 
-            // Build city list dynamically from uploaded events + static CITIES
+            // Build city list dynamically from uploaded events + DB cities
             const eventCities = new Set();
             uploadedEvents.forEach(e => {
                 const city = e.cityName || e.city;
                 if (city) eventCities.add(city);
             });
-            const allEventCities = [...CITIES];
+            const allEventCities = dbCities.length > 0 ? [...dbCities] : [...CITIES];
             eventCities.forEach(cityName => {
                 const normalizedCityName = (cityName || '').trim().toLowerCase();
                 if (!allEventCities.some(c => (c.name || '').trim().toLowerCase() === normalizedCityName)) {
@@ -844,14 +883,14 @@ export default function ControlsPage() {
                 );
             }
 
-            // Build city list dynamically from API reports + static CITIES
+            // Build city list dynamically from API reports + DB cities
             const apiCities = new Set();
             submittedReports.forEach(r => {
                 const city = r.cityName || r.city;
                 if (city) apiCities.add(city);
             });
-            // Merge: show CITIES + any extra cities from API data
-            const allCities = [...CITIES];
+            // Merge: show DB cities + any extra cities from API data
+            const allCities = dbCities.length > 0 ? [...dbCities] : [...CITIES];
             apiCities.forEach(cityName => {
                 if (!allCities.find(c => c.name.toLowerCase() === cityName.toLowerCase())) {
                     allCities.push({ name: cityName, gradient: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' });
@@ -1505,7 +1544,12 @@ export default function ControlsPage() {
                         gap: '1.5rem',
                         padding: '1rem'
                     }}>
-                        {CITIES.map((city) => (
+                        {dbCitiesLoading ? (
+                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTop: '3px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                                Loading cities...
+                            </div>
+                        ) : (dbCities.length > 0 ? dbCities : CITIES).map((city) => (
                             <div
                                 key={city.name}
                                 className="city-card hover-scale"
