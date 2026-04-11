@@ -11,6 +11,7 @@ import {
     Shield,
     Bell,
     LogOut,
+    Handshake,
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
@@ -24,6 +25,7 @@ const navItems = [
     { id: '1-2-1', label: '1-2-1', icon: UserPlus },
     { id: 'visitors', label: 'Visitors', icon: UserCheck },
     { id: 'admins', label: 'Admins', icon: Shield },
+    { id: 'sponsor', label: 'Sponsor', icon: Handshake },
     { id: 'login', label: 'Pending Users', icon: Settings },
 ];
 

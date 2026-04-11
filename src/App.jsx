@@ -11,6 +11,7 @@ import ControlsPage from './components/ControlsPage';
 import NotificationsPage from './components/NotificationsPage';
 import AdminsPage from './components/AdminsPage';
 import AdminForm from './components/AdminForm';
+import SponsorPage from './components/SponsorPage';
 import { useData } from './context/DataContext';
 import './index.css';
 
@@ -207,6 +208,8 @@ function App() {
           <main className="main-content">
             <NotificationsPage onNavigate={navigateTo} />
           </main>
+        ) : activeNav === 'sponsor' ? (
+          <SponsorPage />
         ) : (
           <main className="main-content">
             <header className="page-header center-header">
