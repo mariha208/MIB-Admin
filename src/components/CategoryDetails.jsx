@@ -43,7 +43,8 @@ const CATEGORY_CONFIG = {
         apiMetric: 'visitors',
         grandTotalLabel: 'Grand Total Visitors',
         userStatKey: 'chapterTotal',
-        userStatLabel: 'Visitors',
+        userStatLabel: 'Count',
+        isVisitorType: true,
         formatValue: (v) => v.toLocaleString(),
         gradient: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
         color: '#4FACFE',
@@ -425,9 +426,9 @@ export default function CategoryDetails({ type = 'business' }) {
                                                             <thead>
                                                                 <tr>
                                                                     <th style={{ padding: '10px 16px', fontSize: '12px' }}>#</th>
-                                                                    <th style={{ padding: '10px 16px', fontSize: '12px' }}>Member</th>
-                                                                    <th style={{ padding: '10px 16px', fontSize: '12px' }}>Email</th>
-                                                                    <th style={{ padding: '10px 16px', fontSize: '12px' }}>Phone</th>
+                                                                    <th style={{ padding: '10px 16px', fontSize: '12px' }}>{config.isVisitorType ? 'Visitor Name' : 'Member'}</th>
+                                                                    <th style={{ padding: '10px 16px', fontSize: '12px' }}>{config.isVisitorType ? 'Phone' : 'Email'}</th>
+                                                                    <th style={{ padding: '10px 16px', fontSize: '12px' }}>{config.isVisitorType ? 'Company / Purpose' : 'Phone'}</th>
                                                                     <th style={{ padding: '10px 16px', fontSize: '12px', textAlign: 'right' }}>
                                                                         {config.userStatLabel}
                                                                     </th>
@@ -470,14 +471,14 @@ export default function CategoryDetails({ type = 'business' }) {
                                                                             color: 'var(--text-secondary)',
                                                                             fontSize: '13px',
                                                                         }}>
-                                                                            {u.email || '—'}
+                                                                            {config.isVisitorType ? (u.phone || '—') : (u.email || '—')}
                                                                         </td>
                                                                         <td style={{
                                                                             padding: '10px 16px',
                                                                             color: 'var(--text-secondary)',
                                                                             fontSize: '13px',
                                                                         }}>
-                                                                            {u.phone || '—'}
+                                                                            {config.isVisitorType ? (u.company || u.purpose || '—') : (u.phone || '—')}
                                                                         </td>
                                                                         <td style={{
                                                                             padding: '10px 16px',

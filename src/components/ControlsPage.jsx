@@ -9,12 +9,9 @@ const MOCK_HISTORY = [
 ];
 
 const CONTROL_OPTIONS = [
-    { id: 'password', label: 'Password Control', icon: Key },
     { id: 'events', label: 'Event', icon: CalendarCheck },
     { id: 'event', label: 'Event Reports', icon: BarChart3 },
-    { id: 'weekly', label: 'Weekly Reports', icon: Calendar },
     { id: 'upload', label: 'Upload Events', icon: Upload },
-    { id: 'submitted', label: 'Submitted Reports', icon: FileText },
     { id: 'addCity', label: 'Add New City', icon: MapPin },
     { id: 'addChapter', label: 'Add New Chapter', icon: BookOpen },
 ];
