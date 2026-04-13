@@ -114,7 +114,10 @@ function Dashboard({ onNavigate, theme, onToggleTheme, onShowProfile }) {
         />
       </div>
 
-      <BusinessChart />
+      <BusinessChart metric="business" />
+      <BusinessChart metric="referrals" />
+      <BusinessChart metric="meets" />
+      <BusinessChart metric="visitors" />
     </main>
   );
 }

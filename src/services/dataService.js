@@ -832,3 +832,96 @@ export async function deleteChapter(chapterId) {
         throw error;
     }
 }
+
+// ==========================================
+// Admin Dashboard — Users Table & Filters
+// ==========================================
+
+// GET Users with stats — GET /admin-dashboard/users?cityId=&chapterId=&search=&page=&limit=
+export async function getAdminDashboardUsers({ cityId = '', chapterId = '', search = '', page = 1, limit = 50 } = {}) {
+    console.log('[dataService] getAdminDashboardUsers called:', { cityId, chapterId, search, page, limit });
+    try {
+        const params = new URLSearchParams();
+        if (cityId) params.set('cityId', cityId);
+        if (chapterId) params.set('chapterId', chapterId);
+        if (search) params.set('search', search);
+        params.set('page', String(page));
+        params.set('limit', String(limit));
+
+        const data = await authApiRequest(`/admin-dashboard/users?${params.toString()}`);
+        console.log('[dataService] Admin dashboard users response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching admin dashboard users:', error);
+        throw error;
+    }
+}
+
+// GET Filter options (cities + chapters) — GET /admin-dashboard/filters
+export async function getAdminDashboardFilters() {
+    console.log('[dataService] getAdminDashboardFilters called');
+    try {
+        const data = await authApiRequest('/admin-dashboard/filters');
+        console.log('[dataService] Admin dashboard filters response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching admin dashboard filters:', error);
+        throw error;
+    }
+}
+
+// ==========================================
+// Admin Dashboard — Bar Chart Data (by Chapter)
+// ==========================================
+
+// GET Business by Chapter — GET /admin-dashboard/business-by-chapter?period=weekly|monthly|yearly
+export async function getBusinessByChapter(period = 'weekly') {
+    console.log('[dataService] getBusinessByChapter called, period:', period);
+    try {
+        const data = await authApiRequest(`/admin-dashboard/business-by-chapter?period=${period}`);
+        console.log('[dataService] Business by chapter response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching business by chapter:', error);
+        throw error;
+    }
+}
+
+// GET Referrals by Chapter — GET /admin-dashboard/referrals-by-chapter?period=weekly|monthly|yearly
+export async function getReferralsByChapter(period = 'weekly') {
+    console.log('[dataService] getReferralsByChapter called, period:', period);
+    try {
+        const data = await authApiRequest(`/admin-dashboard/referrals-by-chapter?period=${period}`);
+        console.log('[dataService] Referrals by chapter response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching referrals by chapter:', error);
+        throw error;
+    }
+}
+
+// GET Meets by Chapter — GET /admin-dashboard/meets-by-chapter?period=weekly|monthly|yearly
+export async function getMeetsByChapter(period = 'weekly') {
+    console.log('[dataService] getMeetsByChapter called, period:', period);
+    try {
+        const data = await authApiRequest(`/admin-dashboard/meets-by-chapter?period=${period}`);
+        console.log('[dataService] Meets by chapter response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching meets by chapter:', error);
+        throw error;
+    }
+}
+
+// GET Visitors by Chapter — GET /admin-dashboard/visitors-by-chapter?period=weekly|monthly|yearly
+export async function getVisitorsByChapter(period = 'weekly') {
+    console.log('[dataService] getVisitorsByChapter called, period:', period);
+    try {
+        const data = await authApiRequest(`/admin-dashboard/visitors-by-chapter?period=${period}`);
+        console.log('[dataService] Visitors by chapter response:', data);
+        return data.data || data;
+    } catch (error) {
+        console.error('[dataService] Error fetching visitors by chapter:', error);
+        throw error;
+    }
+}
